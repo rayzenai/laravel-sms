@@ -22,13 +22,12 @@ class SendSms extends Page
     
     protected static ?int $navigationSort = 1;
     
-    public ?string $recipient = '';
+    public ?array $data = [];
     
-    public ?array $recipients = [];
-    
-    public ?string $message = '';
-    
-    public bool $isBulk = false;
+    protected function getFormStatePath(): ?string
+    {
+        return 'data';
+    }
     
     public function mount(): void
     {
@@ -46,23 +45,29 @@ class SendSms extends Page
                     
                 Forms\Components\TextInput::make('recipient')
                     ->label('Recipient Phone Number')
-                    ->placeholder('+977 9801234567')
+                    ->prefix('+977')
+                    ->placeholder('9801234567')
                     ->tel()
                     ->required()
-                    ->rules([new NepaliPhoneNumber()])
-                    ->visible(fn () => !$this->isBulk)
-                    ->helperText('Enter a valid Nepali phone number starting with +977'),
+                    ->maxLength(10)
+                    ->minLength(10)
+                    ->numeric()
+                    ->rules(['regex:/^9[0-9]{9}$/'])
+                    ->visible(fn ($get) => !$get('isBulk'))
+                    ->helperText('Enter 10-digit mobile number (without +977)')
+                    ->dehydrateStateUsing(fn ($state) => $state ? '+977' . $state : null),
                     
                 Forms\Components\TagsInput::make('recipients')
                     ->label('Recipients Phone Numbers')
-                    ->placeholder('Add phone numbers...')
+                    ->placeholder('Add phone numbers (e.g., 9801234567)...')
                     ->required()
-                    ->visible(fn () => $this->isBulk)
-                    ->helperText('Enter valid Nepali phone numbers starting with +977')
+                    ->visible(fn ($get) => $get('isBulk'))
+                    ->helperText('Enter 10-digit mobile numbers (without +977)')
                     ->nestedRecursiveRules([
                         'string',
-                        new NepaliPhoneNumber(),
-                    ]),
+                        'regex:/^9[0-9]{9}$/',
+                    ])
+                    ->dehydrateStateUsing(fn ($state) => array_map(fn ($number) => '+977' . $number, $state ?? [])),
                     
                 Forms\Components\Textarea::make('message')
                     ->label('Message')
@@ -84,9 +89,12 @@ class SendSms extends Page
                 ->action('sendSms')
                 ->requiresConfirmation()
                 ->modalHeading('Confirm SMS Send')
-                ->modalDescription(fn () => $this->isBulk 
-                    ? 'Are you sure you want to send this SMS to ' . count($this->recipients) . ' recipients?' 
-                    : 'Are you sure you want to send this SMS?')
+                ->modalDescription(function () {
+                    $data = $this->form->getState();
+                    return isset($data['isBulk']) && $data['isBulk'] 
+                        ? 'Are you sure you want to send this SMS to ' . count($data['recipients'] ?? []) . ' recipients?' 
+                        : 'Are you sure you want to send this SMS?';
+                })
                 ->modalSubmitActionLabel('Yes, send it'),
                 
             Action::make('reset')
@@ -102,7 +110,7 @@ class SendSms extends Page
         $data = $this->form->getState();
         
         try {
-            if ($this->isBulk) {
+            if (isset($data['isBulk']) && $data['isBulk']) {
                 $result = Sms::to($data['recipients'])
                     ->message($data['message'])
                     ->sendBulk();

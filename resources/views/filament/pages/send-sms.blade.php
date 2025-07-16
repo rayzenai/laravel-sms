@@ -15,7 +15,7 @@
             
             <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                 <p>• Messages are limited to 160 characters</p>
-                <p>• Phone numbers must be in Nepali format (+977 followed by 10 digits)</p>
+                <p>• Phone numbers must be 10 digits (prefix +977 is added automatically)</p>
                 <p>• Bulk SMS allows sending to multiple recipients at once</p>
                 <p>• All SMS activity is logged for tracking purposes</p>
             </div>
