@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.3] - 2025-01-16
+
+### Added
+- Filament Send SMS page for sending single and bulk SMS from admin panel
+- LaravelSmsPlugin for easy Filament integration
+- Real-time character counter for SMS messages
+- Toggle between single and bulk SMS modes in Filament
+- Confirmation dialogs before sending SMS
+- Success/error notifications in Filament
+- SMS sending guidelines in the admin panel
+
+### Changed
+- Updated SentMessageResource navigation sort order
+- Enhanced documentation with detailed Filament integration instructions
+
 ## [1.2.2] - 2025-01-16
 
 ### Added

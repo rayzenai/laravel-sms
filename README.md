@@ -274,19 +274,48 @@ composer require filament/filament:"^3.0"
 php artisan filament:install --panels
 ```
 
-#### 2. Register the SMS Resource
+#### 2. Register the SMS Plugin
 
-The package automatically registers the `SentMessageResource` with your Filament panel. After installation, you'll see a new "Sent Messages" section in your Filament admin panel.
+You'll need to register the `LaravelSmsPlugin` in your `Panel` service provider:
 
-#### 3. Access SMS Management
+```php
+use Rayzenai\LaravelSms\LaravelSmsPlugin;
+
+// In the Filament panel provider:
+Panel::make()
+    ->plugins([
+        LaravelSmsPlugin::make(),
+    ])
+    ->register();
+```
+
+#### 3. Access the SMS Management
+
+Once you have registered the plugin, you will see a "Send SMS" section in the admin panel navigation.
 
 1. Navigate to your Filament admin panel (typically `/admin`)
-2. Look for "Sent Messages" in the navigation
-3. From here you can:
-   - View all sent SMS messages
-   - Filter messages by status, recipient, or date
-   - View detailed information about each message
-   - Export SMS logs
+2. Look for the "Send SMS" and "Sent Messages" options under "SMS Management"
+3. From here you can send SMS, view all sent messages, and filter the logs.
+
+#### Filament Features:
+
+**Send SMS Page:**
+- Single SMS sending with phone number validation
+- Bulk SMS sending to multiple recipients
+- Real-time character count for messages (160 character limit)
+- Toggle between single and bulk SMS modes
+- Nepali phone number validation
+- Confirmation dialogs before sending
+- Success/error notifications
+
+**Sent Messages Resource:**
+- View all sent SMS messages in a table
+- Filter by status (pending, sent, failed, delivered)
+- Filter by date range
+- Search by recipient or message content
+- View detailed SMS information
+- Bulk delete functionality
+- Export SMS logs
 
 ### Customizing Filament Resources
 
