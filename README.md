@@ -99,8 +99,12 @@ The package now supports validation for Nepali phone numbers:
 
 ```php
 use Rayzenai\LaravelSms\Services\SmsService;
+use Rayzenai\LaravelSms\Facades\Sms;
 
-// Using dependency injection
+// Method 1: Using the Facade
+$sentMessage = Sms::send('+1234567890', 'Hello from Laravel SMS!');
+
+// Method 2: Using dependency injection
 public function sendSms(SmsService $smsService)
 {
     try {
@@ -115,7 +119,7 @@ public function sendSms(SmsService $smsService)
     }
 }
 
-// Using service container
+// Method 3: Using service container
 $smsService = app(SmsService::class);
 $sentMessage = $smsService->send('+1234567890', 'Your message here');
 ```
