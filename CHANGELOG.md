@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2025-01-16
+
+### Added
+- Fluent interface for SMS sending with `Sms::to()->message()->send()` syntax
+- SmsMessageBuilder class for chainable method calls
+- Support for both fluent and direct method calls
+
+### Fixed
+- Fixed "Call to undefined method to()" error when using fluent interface
+
 ## [1.2.1] - 2025-01-16
 
 ### Added

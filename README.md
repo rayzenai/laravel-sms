@@ -101,10 +101,15 @@ The package now supports validation for Nepali phone numbers:
 use Rayzenai\LaravelSms\Services\SmsService;
 use Rayzenai\LaravelSms\Facades\Sms;
 
-// Method 1: Using the Facade
-$sentMessage = Sms::send('+1234567890', 'Hello from Laravel SMS!');
+// Method 1: Using the Facade with fluent interface (recommended)
+$sentMessage = Sms::to('+9779801002468')
+    ->message('Hello from Laravel SMS!')
+    ->send();
 
-// Method 2: Using dependency injection
+// Method 2: Using the Facade with direct method call
+$sentMessage = Sms::send('+9779801002468', 'Hello from Laravel SMS!');
+
+// Method 3: Using dependency injection
 public function sendSms(SmsService $smsService)
 {
     try {
@@ -127,15 +132,22 @@ $sentMessage = $smsService->send('+1234567890', 'Your message here');
 #### Sending Bulk SMS
 
 ```php
+use Rayzenai\LaravelSms\Facades\Sms;
 use Rayzenai\LaravelSms\Services\SmsService;
 
-$smsService = app(SmsService::class);
-
+// Method 1: Using the Facade with fluent interface (recommended)
 $recipients = [
-    '+1234567890',
-    '+0987654321',
-    '+1111111111'
+    '+9779801002468',
+    '+9779812345678',
+    '+9779898765432'
 ];
+
+$sentMessages = Sms::to($recipients)
+    ->message('Bulk message to all recipients!')
+    ->sendBulk();
+
+// Method 2: Using the service directly
+$smsService = app(SmsService::class);
 
 try {
     $sentMessages = $smsService->sendBulk($recipients, 'Bulk message to all recipients!');
@@ -145,7 +157,6 @@ try {
     }
 } catch (\Exception $e) {
     Log::error('Bulk SMS failed: ' . $e->getMessage());
-}
 ```
 
 ### Using in Controllers
