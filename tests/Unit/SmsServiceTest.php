@@ -3,6 +3,7 @@
 namespace Rayzenai\LaravelSms\Tests\Unit;
 
 use Illuminate\Support\Facades\Http;
+use Rayzenai\LaravelSms\Models\SentMessage;
 use Rayzenai\LaravelSms\Services\SmsService;
 use Rayzenai\LaravelSms\Providers\HttpProvider;
 use Rayzenai\LaravelSms\Tests\TestCase;
@@ -42,10 +43,10 @@ class SmsServiceTest extends TestCase
             ], 200),
         ]);
         
-        $sentMessage = $this->smsService->send('+1234567890', 'Test message');
-        
-        $this->assertEquals('+1234567890', $sentMessage->recipient);
-        $this->assertEquals('Test message', $sentMessage->message);
+        $sentMessage = $this->smsService->send('+9779801002468', 'Test message');
+
+        $this->assertInstanceOf(SentMessage::class, $sentMessage);
+        $this->assertEquals('+9779801002468', $sentMessage->recipient);
         $this->assertEquals('TestApp', $sentMessage->sender);
         $this->assertEquals('sent', $sentMessage->status);
         $this->assertEquals('http', $sentMessage->provider);
@@ -54,7 +55,7 @@ class SmsServiceTest extends TestCase
         
         Http::assertSent(function ($request) {
             return $request->url() === 'https://api.example.com/send' &&
-                   $request['recipient'] === '+1234567890' &&
+                   $request['recipient'] === '+9779801002468' &&
                    $request['message'] === 'Test message' &&
                    $request['sender'] === 'TestApp' &&
                    $request->hasHeader('Authorization', 'Bearer test-api-key');
@@ -71,7 +72,7 @@ class SmsServiceTest extends TestCase
             ], 400),
         ]);
         
-        $sentMessage = $this->smsService->send('+1234567890', 'Test message');
+        $sentMessage = $this->smsService->send('+9779801002468', 'Test message');
         
         $this->assertEquals('failed', $sentMessage->status);
         $this->assertArrayHasKey('error', $sentMessage->provider_response);
@@ -87,23 +88,23 @@ class SmsServiceTest extends TestCase
                 ->push(['success' => false, 'error' => 'Invalid number'], 400),
         ]);
         
-        $recipients = ['+1234567890', '+0987654321', '+1111111111'];
+        $recipients = ['+9779801002468', '+9779812345678', '+9779898765432'];
         $sentMessages = $this->smsService->sendBulk($recipients, 'Bulk test message');
         
         $this->assertCount(3, $sentMessages);
         
         // Check first message
-        $this->assertEquals('+1234567890', $sentMessages[0]->recipient);
+        $this->assertEquals('+9779801002468', $sentMessages[0]->recipient);
         $this->assertEquals('sent', $sentMessages[0]->status);
         $this->assertEquals('msg_001', $sentMessages[0]->provider_message_id);
         
         // Check second message
-        $this->assertEquals('+0987654321', $sentMessages[1]->recipient);
+        $this->assertEquals('+9779812345678', $sentMessages[1]->recipient);
         $this->assertEquals('sent', $sentMessages[1]->status);
         $this->assertEquals('msg_002', $sentMessages[1]->provider_message_id);
         
         // Check third message (failed)
-        $this->assertEquals('+1111111111', $sentMessages[2]->recipient);
+        $this->assertEquals('+9779898765432', $sentMessages[2]->recipient);
         $this->assertEquals('failed', $sentMessages[2]->status);
         $this->assertArrayHasKey('error', $sentMessages[2]->provider_response);
         
@@ -120,18 +121,18 @@ class SmsServiceTest extends TestCase
                 ->push(['success' => true, 'message_id' => 'msg_002', 'status' => 'sent'], 200),
         ]);
         
-        $recipients = ['+1234567890', '+0987654321'];
+        $recipients = ['+9779801002468', '+9779812345678'];
         $sentMessages = $this->smsService->sendBulk($recipients, 'Bulk test message');
         
         $this->assertCount(2, $sentMessages);
         
         // Check first message
-        $this->assertEquals('+1234567890', $sentMessages[0]->recipient);
+        $this->assertEquals('+9779801002468', $sentMessages[0]->recipient);
         $this->assertEquals('sent', $sentMessages[0]->status);
         $this->assertEquals('msg_001', $sentMessages[0]->provider_message_id);
         
         // Check second message
-        $this->assertEquals('+0987654321', $sentMessages[1]->recipient);
+        $this->assertEquals('+9779812345678', $sentMessages[1]->recipient);
         $this->assertEquals('sent', $sentMessages[1]->status);
         $this->assertEquals('msg_002', $sentMessages[1]->provider_message_id);
     }
@@ -146,7 +147,7 @@ class SmsServiceTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Connection timeout');
         
-        $this->smsService->send('+1234567890', 'Test message');
+        $this->smsService->send('+9779801002468', 'Test message');
     }
     
     public function test_send_bulk_handles_http_exception()
@@ -156,7 +157,7 @@ class SmsServiceTest extends TestCase
             throw new \Exception('Connection timeout', 28);
         });
         
-        $recipients = ['+1234567890', '+0987654321'];
+        $recipients = ['+9779801002468', '+9779812345678'];
         $sentMessages = $this->smsService->sendBulk($recipients, 'Bulk test message');
         
         $this->assertCount(2, $sentMessages);

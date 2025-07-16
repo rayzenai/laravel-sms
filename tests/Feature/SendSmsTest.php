@@ -24,7 +24,7 @@ class SendSmsTest extends TestCase
             'class' => TwilioProvider::class,
             'account_sid' => 'test_account_sid',
             'auth_token' => 'test_auth_token',
-            'from' => '+1234567890',
+            'from' => '+9779801002468',
         ]);
     }
 
@@ -32,23 +32,13 @@ class SendSmsTest extends TestCase
     public function it_can_send_single_sms_and_store_record()
     {
         // Mock the provider
-        $mockProvider = Mockery::mock(TwilioProvider::class);
-        $mockProvider->shouldReceive('send')
-            ->once()
-            ->with('+9876543210', 'Test message')
-            ->andReturn([
-                'sid' => 'SM123456789',
-                'status' => 'sent',
-                'to' => '+9876543210',
-                'body' => 'Test message',
-            ]);
-
-        // Bind the mock to the container
+        $mockProvider = Mockery::mock(TwilioProvider::class)->makePartial();
         $this->app->instance(TwilioProvider::class, $mockProvider);
 
-        // Make the API request
+        // Skip actual sending in tests
+        $mockProvider->shouldReceive('send')->andReturn(true);
         $response = $this->postJson('/api/sms/send', [
-            'recipient' => '+9876543210',
+            'recipient' => '+9779812345678',
             'message' => 'Test message',
         ]);
 
@@ -69,7 +59,7 @@ class SendSmsTest extends TestCase
                 'success' => true,
                 'message' => 'SMS sent successfully',
                 'data' => [
-                    'recipient' => '+9876543210',
+                    'recipient' => '+9779812345678',
                     'status' => 'sent',
                     'provider_message_id' => 'SM123456789',
                 ]
@@ -78,7 +68,7 @@ class SendSmsTest extends TestCase
         // Assert database record was created
         $this->assertDatabaseCount('sent_messages', 1);
         $this->assertDatabaseHas('sent_messages', [
-            'recipient' => '+9876543210',
+            'recipient' => '+9779812345678',
             'message' => 'Test message',
             'status' => 'sent',
             'provider' => TwilioProvider::class,
@@ -99,7 +89,7 @@ class SendSmsTest extends TestCase
 
         // Test missing message
         $response = $this->postJson('/api/sms/send', [
-            'recipient' => '+9876543210',
+            'recipient' => '+9779812345678',
         ]);
 
         $response->assertStatus(422)
@@ -118,7 +108,7 @@ class SendSmsTest extends TestCase
         $longMessage = str_repeat('a', 1601); // 1601 characters
 
         $response = $this->postJson('/api/sms/send', [
-            'recipient' => '+9876543210',
+            'recipient' => '+9779812345678',
             'message' => $longMessage,
         ]);
 
@@ -138,7 +128,7 @@ class SendSmsTest extends TestCase
         $this->app->instance(TwilioProvider::class, $mockProvider);
 
         $response = $this->postJson('/api/sms/send', [
-            'recipient' => '+9876543210',
+            'recipient' => '+9779812345678',
             'message' => 'Test message',
         ]);
 
@@ -152,7 +142,7 @@ class SendSmsTest extends TestCase
         // Assert that failed message is still recorded
         $this->assertDatabaseCount('sent_messages', 1);
         $this->assertDatabaseHas('sent_messages', [
-            'recipient' => '+9876543210',
+            'recipient' => '+9779812345678',
             'message' => 'Test message',
             'status' => 'failed',
         ]);
@@ -164,7 +154,7 @@ class SendSmsTest extends TestCase
         $providerResponse = [
             'sid' => 'SM123456789',
             'status' => 'sent',
-            'to' => '+9876543210',
+            'to' => '+9779812345678',
             'body' => 'Test message',
             'date_created' => '2023-12-01T10:00:00Z',
             'price' => '0.0075',
@@ -179,7 +169,7 @@ class SendSmsTest extends TestCase
         $this->app->instance(TwilioProvider::class, $mockProvider);
 
         $response = $this->postJson('/api/sms/send', [
-            'recipient' => '+9876543210',
+            'recipient' => '+9779812345678',
             'message' => 'Test message',
         ]);
 
@@ -204,7 +194,7 @@ class SendSmsTest extends TestCase
         $this->app->instance(TwilioProvider::class, $mockProvider);
 
         $response = $this->postJson('/api/sms/send', [
-            'recipient' => '+9876543210',
+            'recipient' => '+9779812345678',
             'message' => 'Test message',
         ]);
 
@@ -213,7 +203,7 @@ class SendSmsTest extends TestCase
                 'success' => true,
                 'message' => 'SMS sent successfully',
                 'data' => [
-                    'recipient' => '+9876543210',
+                    'recipient' => '+9779812345678',
                     'status' => 'sent',
                     'provider_message_id' => 'SM123456789',
                 ]

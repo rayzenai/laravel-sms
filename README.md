@@ -72,6 +72,18 @@ SMS_RETRY_DELAY=1000
 
 ## Usage
 
+### Phone Number Validation
+
+The package now supports validation for Nepali phone numbers:
+- Numbers must start with +977
+- Must have 10 digits after the country code (e.g., +977 9801002468)
+
+#### Example Validation Rule:
+
+```php
+'phone' => 'required|string|regex:/^\+977[9][0-9]{9}$/'
+```
+
 ### Basic Usage
 
 #### Sending a Single SMS
@@ -143,7 +155,7 @@ class NotificationController extends Controller
     public function sendWelcomeSms(Request $request)
     {
         $request->validate([
-            'phone' => 'required|string',
+            'phone' => 'required|string|regex:/^\+977[9][0-9]{9}$/',
             'name' => 'required|string'
         ]);
         

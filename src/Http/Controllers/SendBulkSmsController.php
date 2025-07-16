@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
+use Rayzenai\LaravelSms\Rules\NepaliPhoneNumber;
 use Rayzenai\LaravelSms\Services\SmsService;
 
 class SendBulkSmsController extends Controller
@@ -23,7 +24,7 @@ class SendBulkSmsController extends Controller
         // Validate the request
         $validated = $request->validate([
             'recipients' => 'required|array|min:1',
-            'recipients.*' => 'required|string',
+            'recipients.*' => ['required', 'string', new NepaliPhoneNumber()],
             'message' => 'required|string|max:1600',
         ]);
 
