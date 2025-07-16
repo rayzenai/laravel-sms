@@ -9,6 +9,15 @@
             "email": "support@rayzenai.com"
         }
     ],
+    "keywords": [
+        "laravel",
+        "sms",
+        "twilio",
+        "http",
+        "notification",
+        "messaging"
+    ],
+    "homepage": "https://github.com/rayzenai/laravel-sms",
     "require": {
         "php": "^8.0",
         "illuminate/support": "^9.0|^10.0|^11.0"
