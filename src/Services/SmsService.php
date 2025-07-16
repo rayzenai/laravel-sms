@@ -1,0 +1,115 @@
+<?php
+
+namespace Rayzenai\LaravelSms\Services;
+
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Rayzenai\LaravelSms\Models\SentMessage;
+use Rayzenai\LaravelSms\Providers\SmsProviderInterface;
+
+class SmsService
+{
+    protected SmsProviderInterface $provider;
+
+    public function __construct(SmsProviderInterface $provider)
+    {
+        $this->provider = $provider;
+    }
+    /**
+     * Send SMS to a single recipient.
+     *
+     * @param string $recipient The recipient's phone number
+     * @param string $message The message content
+     * @return SentMessage
+     * @throws \Exception
+     */
+    public function send(string $recipient, string $message): SentMessage
+    {
+        try {
+            // Use the provider to send the message
+            $result = $this->provider->send($recipient, $message);
+            
+            // Log the request if logging is enabled
+            if (config('laravel-sms.logging.enabled')) {
+                Log::channel(config('laravel-sms.logging.channel', 'stack'))
+                    ->info('SMS sent', [
+                        'recipient' => $recipient,
+                        'message' => $message,
+                        'response' => $result,
+                    ]);
+            }
+            
+            // Create and save the sent message record
+            $sentMessage = new SentMessage();
+            $sentMessage->recipient = $recipient;
+            $sentMessage->message = $message;
+            $sentMessage->sender = config('laravel-sms.default_sender');
+            $sentMessage->status = $result['status'];
+            $sentMessage->provider = config('laravel-sms.default_provider', 'http');
+            $sentMessage->provider_message_id = $result['sid'] ?? null;
+            $sentMessage->provider_response = $result['response'] ?? $result;
+            $sentMessage->sent_at = now();
+            $sentMessage->save();
+            
+            return $sentMessage;
+            
+        } catch (\Exception $e) {
+            // Log the error if logging is enabled
+            if (config('laravel-sms.logging.enabled')) {
+                Log::channel(config('laravel-sms.logging.channel', 'stack'))
+                    ->error('SMS send failed', [
+                        'recipient' => $recipient,
+                        'message' => $message,
+                        'error' => $e->getMessage(),
+                    ]);
+            }
+            
+            // Create a failed message record
+            $sentMessage = new SentMessage();
+            $sentMessage->recipient = $recipient;
+            $sentMessage->message = $message;
+            $sentMessage->sender = config('laravel-sms.default_sender');
+            $sentMessage->status = 'failed';
+            $sentMessage->provider = config('laravel-sms.default_provider', 'http');
+            $sentMessage->provider_response = [
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+            ];
+            $sentMessage->sent_at = now();
+            $sentMessage->save();
+            
+            throw $e;
+        }
+    }
+    
+    /**
+     * Send SMS to multiple recipients.
+     *
+     * @param array $recipients Array of recipient phone numbers
+     * @param string $message The message content
+     * @return Collection Collection of SentMessage models
+     */
+    public function sendBulk(array $recipients, string $message): Collection
+    {
+        $sentMessages = collect();
+        
+        // For bulk send, we'll send individual messages through the provider
+        foreach ($recipients as $recipient) {
+            try {
+                $sentMessage = $this->send($recipient, $message);
+                $sentMessages->push($sentMessage);
+            } catch (\Exception $e) {
+                // Even if one fails, continue with others
+                // The failed message is already recorded by send() method
+                $sentMessages->push(SentMessage::where('recipient', $recipient)
+                    ->where('message', $message)
+                    ->where('status', 'failed')
+                    ->latest()
+                    ->first());
+            }
+        }
+            
+        
+        return $sentMessages;
+    }
+}

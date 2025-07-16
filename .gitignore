@@ -1,0 +1,17 @@
+/vendor
+/node_modules
+composer.lock
+package-lock.json
+.phpunit.result.cache
+.idea
+.vscode
+.DS_Store
+*.swp
+*.swo
+*~
+.env
+.env.backup
+.phpunit.xml
+phpunit.xml
+.php_cs.cache
+.php-cs-fixer.cache
