@@ -5,11 +5,13 @@ A comprehensive Laravel package for sending SMS messages through various provide
 ## Features
 
 - 📱 Send single and bulk SMS messages
-- 🔄 Multiple SMS provider support (HTTP, Twilio, etc.)
+- 🔄 Multiple SMS provider support (HTTP, Twilio, SwiftSMS, etc.)
 - 📊 Filament admin panel integration for SMS management
 - 📝 SMS logs and tracking
 - ⚡ Rate limiting and retry mechanisms
 - 🛡️ Built-in error handling and logging
+- 🇳🇵 Nepali phone number validation
+- 📦 Bulk SMS optimization with provider-specific batch sending
 
 ## Requirements
 
@@ -68,6 +70,13 @@ SMS_MAX_PER_HOUR=1000
 # Optional: Retry Configuration
 SMS_RETRY_ATTEMPTS=3
 SMS_RETRY_DELAY=1000
+
+# SwiftSMS Provider Configuration (for Nepal)
+SMS_PROVIDER=swiftsms
+SWIFT_SMS_API_URL=https://api.swifttech.com.np
+SWIFT_SMS_USERNAME=your-username
+SWIFT_SMS_PASSWORD=your-password
+SWIFT_SMS_FROM=your-sender-id
 ```
 
 ## Usage
@@ -293,6 +302,13 @@ You can configure multiple SMS providers in `config/laravel-sms.php`:
         'api_key' => env('SMS_API_KEY'),
         'api_url' => env('SMS_API_BASE_URL'),
     ],
+    'swiftsms' => [
+        'class' => \Rayzenai\LaravelSms\Providers\SwiftSmsProvider::class,
+        'api_url' => env('SWIFT_SMS_API_URL'),
+        'username' => env('SWIFT_SMS_USERNAME'),
+        'password' => env('SWIFT_SMS_PASSWORD'),
+        'from' => env('SWIFT_SMS_FROM'),
+    ],
 ],
 ```
 
@@ -348,6 +364,21 @@ class CustomProvider implements SmsProviderInterface
             'sid' => 'unique-message-id',
             'response' => []
         ];
+    }
+    
+    public function sendBulk(array $recipients, string $message, ?string $from = null): array
+    {
+        // Your bulk implementation here
+        $results = [];
+        foreach ($recipients as $recipient) {
+            $results[] = [
+                'recipient' => $recipient,
+                'status' => 'sent',
+                'sid' => 'unique-message-id-' . uniqid(),
+                'response' => []
+            ];
+        }
+        return $results;
     }
 }
 ```
