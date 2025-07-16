@@ -91,25 +91,73 @@ class SmsService
      */
     public function sendBulk(array $recipients, string $message): Collection
     {
-        $sentMessages = collect();
-        
-        // For bulk send, we'll send individual messages through the provider
-        foreach ($recipients as $recipient) {
-            try {
-                $sentMessage = $this->send($recipient, $message);
-                $sentMessages->push($sentMessage);
-            } catch (\Exception $e) {
-                // Even if one fails, continue with others
-                // The failed message is already recorded by send() method
-                $sentMessages->push(SentMessage::where('recipient', $recipient)
-                    ->where('message', $message)
-                    ->where('status', 'failed')
-                    ->latest()
-                    ->first());
-            }
-        }
+        try {
+            // Use the provider's bulk send method
+            $result = $this->provider->sendBulk($recipients, $message);
             
-        
-        return $sentMessages;
+            // Log the request if logging is enabled
+            if (config('laravel-sms.logging.enabled')) {
+                Log::channel(config('laravel-sms.logging.channel', 'stack'))
+                    ->info('Bulk SMS sent', [
+                        'recipients' => $recipients,
+                        'message' => $message,
+                        'response' => $result,
+                    ]);
+            }
+            
+            $sentMessages = collect();
+            $status = $result['status'] ?? 'failed';
+            $batchId = $result['batch_id'] ?? null;
+            
+            // Create sent message records for each recipient
+            foreach ($recipients as $recipient) {
+                $sentMessage = new SentMessage();
+                $sentMessage->recipient = $recipient;
+                $sentMessage->message = $message;
+                $sentMessage->sender = config('laravel-sms.default_sender');
+                $sentMessage->status = $status;
+                $sentMessage->provider = config('laravel-sms.default_provider', 'http');
+                $sentMessage->provider_message_id = $batchId;
+                $sentMessage->provider_response = $result;
+                $sentMessage->sent_at = now();
+                $sentMessage->save();
+                
+                $sentMessages->push($sentMessage);
+            }
+            
+            return $sentMessages;
+            
+        } catch (\Exception $e) {
+            // Log the error if logging is enabled
+            if (config('laravel-sms.logging.enabled')) {
+                Log::channel(config('laravel-sms.logging.channel', 'stack'))
+                    ->error('Bulk SMS send failed', [
+                        'recipients' => $recipients,
+                        'message' => $message,
+                        'error' => $e->getMessage(),
+                    ]);
+            }
+            
+            // Create failed message records
+            $sentMessages = collect();
+            foreach ($recipients as $recipient) {
+                $sentMessage = new SentMessage();
+                $sentMessage->recipient = $recipient;
+                $sentMessage->message = $message;
+                $sentMessage->sender = config('laravel-sms.default_sender');
+                $sentMessage->status = 'failed';
+                $sentMessage->provider = config('laravel-sms.default_provider', 'http');
+                $sentMessage->provider_response = [
+                    'error' => $e->getMessage(),
+                    'code' => $e->getCode(),
+                ];
+                $sentMessage->sent_at = now();
+                $sentMessage->save();
+                
+                $sentMessages->push($sentMessage);
+            }
+            
+            throw $e;
+        }
     }
 }

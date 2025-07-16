@@ -12,4 +12,13 @@ interface SmsProviderInterface
      * @return array
      */
     public function send(string $recipient, string $message): array;
+
+    /**
+     * Send SMS to multiple recipients.
+     *
+     * @param array $recipients
+     * @param string $message
+     * @return array
+     */
+    public function sendBulk(array $recipients, string $message): array;
 }

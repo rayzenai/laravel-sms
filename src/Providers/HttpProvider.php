@@ -45,4 +45,32 @@ class HttpProvider implements SmsProviderInterface
             'response' => $response->json(),
         ];
     }
+
+    /**
+     * Send SMS to multiple recipients.
+     *
+     * @param array $recipients
+     * @param string $message
+     * @return array
+     */
+    public function sendBulk(array $recipients, string $message): array
+    {
+        $response = Http::timeout($this->timeout)
+            ->withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type' => 'application/json',
+            ])
+            ->post($this->apiBaseUrl . '/send-bulk', [
+                'recipients' => $recipients,
+                'message' => $message,
+                'sender' => $this->sender,
+            ]);
+
+        return [
+            'status' => $response->successful() ? 'sent' : 'failed',
+            'batch_id' => $response->json('batch_id'),
+            'recipients_count' => count($recipients),
+            'response' => $response->json(),
+        ];
+    }
 }

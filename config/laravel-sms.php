@@ -64,6 +64,12 @@ return [
         'twilio' => [
             'class' => \Rayzenai\LaravelSms\Providers\TwilioProvider::class,
         ],
+        'swift' => [
+            'class' => \Rayzenai\LaravelSms\Providers\SwiftSmsProvider::class,
+            'organisation_code' => env('SWIFT_SMS_ORGANISATION_CODE'),
+            'username' => env('SWIFT_SMS_USERNAME'),
+            'password' => env('SWIFT_SMS_PASSWORD'),
+        ],
     ],
 
     /*
