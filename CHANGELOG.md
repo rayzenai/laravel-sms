@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2025-01-16
+
+### Added
+- SMS Facade for easier usage with `Sms::send()` and `Sms::sendBulk()` methods
+- Updated documentation with Facade usage examples
+
+### Fixed
+- Fixed missing Facade class error
+
 ## [1.2.0] - 2025-01-16
 
 ### Added
