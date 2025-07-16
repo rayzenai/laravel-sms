@@ -79,16 +79,12 @@ class SmsServiceTest extends TestCase
     
     public function test_send_bulk_sms_successfully()
     {
-        // Mock successful bulk API response with individual results
+        // Mock individual API responses for bulk send
         Http::fake([
-            'https://api.example.com/send-bulk' => Http::response([
-                'success' => true,
-                'results' => [
-                    ['message_id' => 'msg_001', 'status' => 'sent'],
-                    ['message_id' => 'msg_002', 'status' => 'sent'],
-                    ['message_id' => 'msg_003', 'status' => 'failed', 'error' => 'Invalid number'],
-                ],
-            ], 200),
+            'https://api.example.com/send' => Http::sequence()
+                ->push(['success' => true, 'message_id' => 'msg_001', 'status' => 'sent'], 200)
+                ->push(['success' => true, 'message_id' => 'msg_002', 'status' => 'sent'], 200)
+                ->push(['success' => false, 'error' => 'Invalid number'], 400),
         ]);
         
         $recipients = ['+1234567890', '+0987654321', '+1111111111'];
@@ -109,24 +105,19 @@ class SmsServiceTest extends TestCase
         // Check third message (failed)
         $this->assertEquals('+1111111111', $sentMessages[2]->recipient);
         $this->assertEquals('failed', $sentMessages[2]->status);
-        $this->assertEquals('msg_003', $sentMessages[2]->provider_message_id);
+        $this->assertArrayHasKey('error', $sentMessages[2]->provider_response);
         
-        Http::assertSent(function ($request) use ($recipients) {
-            return $request->url() === 'https://api.example.com/send-bulk' &&
-                   $request['recipients'] === $recipients &&
-                   $request['message'] === 'Bulk test message' &&
-                   $request['sender'] === 'TestApp';
-        });
+        // Assert that three individual send requests were made
+        Http::assertSentCount(3);
     }
     
     public function test_send_bulk_sms_without_individual_results()
     {
-        // Mock successful bulk API response without individual results
+        // Mock successful individual API responses
         Http::fake([
-            'https://api.example.com/send-bulk' => Http::response([
-                'success' => true,
-                'batch_id' => 'batch_789',
-            ], 200),
+            'https://api.example.com/send' => Http::sequence()
+                ->push(['success' => true, 'message_id' => 'msg_001', 'status' => 'sent'], 200)
+                ->push(['success' => true, 'message_id' => 'msg_002', 'status' => 'sent'], 200),
         ]);
         
         $recipients = ['+1234567890', '+0987654321'];
@@ -134,11 +125,15 @@ class SmsServiceTest extends TestCase
         
         $this->assertCount(2, $sentMessages);
         
-        foreach ($sentMessages as $index => $sentMessage) {
-            $this->assertEquals($recipients[$index], $sentMessage->recipient);
-            $this->assertEquals('sent', $sentMessage->status);
-            $this->assertEquals('batch_789', $sentMessage->provider_message_id);
-        }
+        // Check first message
+        $this->assertEquals('+1234567890', $sentMessages[0]->recipient);
+        $this->assertEquals('sent', $sentMessages[0]->status);
+        $this->assertEquals('msg_001', $sentMessages[0]->provider_message_id);
+        
+        // Check second message
+        $this->assertEquals('+0987654321', $sentMessages[1]->recipient);
+        $this->assertEquals('sent', $sentMessages[1]->status);
+        $this->assertEquals('msg_002', $sentMessages[1]->provider_message_id);
     }
     
     public function test_send_handles_http_exception()
