@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.0] - 2025-01-17
+## [3.0.0] - 2025-01-17
 
 ### Breaking Changes
 - **MAJOR**: Upgraded to Filament v4 support - requires Filament 4.0 or higher
