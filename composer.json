@@ -20,11 +20,13 @@
     "homepage": "https://github.com/rayzenai/laravel-sms",
     "require": {
         "php": "^8.0",
-        "illuminate/support": "^9.0|^10.0|^11.0"
+        "illuminate/support": "^9.0|^10.0|^11.0|^12.0",
+        "filament/filament": "^4.0"
     },
     "require-dev": {
         "phpunit/phpunit": "^10.0",
-        "orchestra/testbench": "^8.0|^9.0"
+        "orchestra/testbench": "^8.0|^9.0",
+        "filament/upgrade": "^4.0"
     },
     "autoload": {
         "psr-4": {

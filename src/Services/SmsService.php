@@ -2,6 +2,7 @@
 
 namespace Rayzenai\LaravelSms\Services;
 
+use Exception;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Rayzenai\LaravelSms\Models\SentMessage;
@@ -21,7 +22,7 @@ class SmsService
      * @param string $recipient The recipient's phone number
      * @param string $message The message content
      * @return SentMessage
-     * @throws \Exception
+     * @throws Exception
      */
     public function send(string $recipient, string $message): SentMessage
     {
@@ -53,7 +54,7 @@ class SmsService
             
             return $sentMessage;
             
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Log the error if logging is enabled
             if (config('laravel-sms.logging.enabled')) {
                 Log::channel(config('laravel-sms.logging.channel', 'stack'))
@@ -127,7 +128,7 @@ class SmsService
             
             return $sentMessages;
             
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Log the error if logging is enabled
             if (config('laravel-sms.logging.enabled')) {
                 Log::channel(config('laravel-sms.logging.channel', 'stack'))

@@ -2,13 +2,16 @@
 
 namespace Rayzenai\LaravelSms\Facades;
 
+use Rayzenai\LaravelSms\Services\SmsMessageBuilder;
+use Rayzenai\LaravelSms\Models\SentMessage;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static \Rayzenai\LaravelSms\Services\SmsMessageBuilder to(string|array $recipients)
- * @method static \Rayzenai\LaravelSms\Models\SentMessage send(string $to, string $message)
- * @method static \Illuminate\Support\Collection sendBulk(array $recipients, string $message)
- * 
+ * @method static SmsMessageBuilder to((string|array) $recipients)
+ * @method static SentMessage send(string $to, string $message)
+ * @method static Collection sendBulk(array $recipients, string $message)
+ *
  * @see \Rayzenai\LaravelSms\Services\SmsService
  */
 class Sms extends Facade
@@ -36,7 +39,7 @@ class Sms extends Facade
         
         // If calling 'to', start a new message builder
         if ($method === 'to') {
-            $builder = new \Rayzenai\LaravelSms\Services\SmsMessageBuilder($instance);
+            $builder = new SmsMessageBuilder($instance);
             return $builder->to(...$args);
         }
         

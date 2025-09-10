@@ -2,6 +2,7 @@
 
 namespace Rayzenai\LaravelSms\Http\Controllers;
 
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -62,7 +63,7 @@ class SendBulkSmsController extends Controller
                 ]
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Return error response
             return response()->json([
                 'success' => false,

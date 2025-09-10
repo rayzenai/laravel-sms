@@ -3,18 +3,21 @@
 namespace Rayzenai\LaravelSms\Filament\Resources;
 
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Rayzenai\LaravelSms\Filament\Resources\SentMessageResource\Pages;
+use Rayzenai\LaravelSms\Filament\Resources\SentMessageResource\Pages\CreateSentMessage;
+use Rayzenai\LaravelSms\Filament\Resources\SentMessageResource\Pages\EditSentMessage;
+use Rayzenai\LaravelSms\Filament\Resources\SentMessageResource\Pages\ListSentMessages;
+use Rayzenai\LaravelSms\Filament\Resources\SentMessageResource\Pages\ViewSentMessage;
 use Rayzenai\LaravelSms\Models\SentMessage;
 
 class SentMessageResource extends Resource
 {
     protected static ?string $model = SentMessage::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-envelope';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-envelope';
 
     protected static ?string $navigationLabel = 'Sent Messages';
 
@@ -22,14 +25,14 @@ class SentMessageResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Sent Messages';
 
-    protected static ?string $navigationGroup = 'SMS Management';
+    protected static string|\UnitEnum|null $navigationGroup = 'SMS Management';
 
     protected static ?int $navigationSort = 2;
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
+        return $schema
+            ->components([
                 Forms\Components\TextInput::make('recipient')
                     ->label('Recipient')
                     ->required()
@@ -121,7 +124,7 @@ class SentMessageResource extends Resource
                         'delivered' => 'Delivered',
                     ]),
                 Tables\Filters\Filter::make('created_at')
-                    ->form([
+                    ->schema([
                         Forms\Components\DatePicker::make('created_from'),
                         Forms\Components\DatePicker::make('created_until'),
                     ])
@@ -137,13 +140,11 @@ class SentMessageResource extends Resource
                             );
                     }),
             ])
-            ->actions([
-                Tables\Actions\ViewAction::make(),
+            ->recordActions([
+                Tables\Actions\ViewAction::make('view'),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+            ->toolbarActions([
+
             ])
             ->defaultSort('created_at', 'desc');
     }
@@ -158,10 +159,10 @@ class SentMessageResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListSentMessages::route('/'),
-            'create' => Pages\CreateSentMessage::route('/create'),
-            'view' => Pages\ViewSentMessage::route('/{record}'),
-            'edit' => Pages\EditSentMessage::route('/{record}/edit'),
+            'index' => ListSentMessages::route('/'),
+            'create' => CreateSentMessage::route('/create'),
+            'view' => ViewSentMessage::route('/{record}'),
+            'edit' => EditSentMessage::route('/{record}/edit'),
         ];
     }
 }

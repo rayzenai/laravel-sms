@@ -2,6 +2,7 @@
 
 namespace Rayzenai\LaravelSms\Providers;
 
+use Exception;
 use Illuminate\Support\Facades\Http;
 
 class SwiftSmsProvider implements SmsProviderInterface
@@ -61,7 +62,7 @@ class SwiftSmsProvider implements SmsProviderInterface
                 'response' => $responseData,
                 'error' => $responseData['responseDescription'] ?? 'Unknown error',
             ];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [
                 'sid' => null,
                 'status' => 'failed',
@@ -120,7 +121,7 @@ class SwiftSmsProvider implements SmsProviderInterface
                 'response' => $responseData,
                 'error' => $responseData['responseDescription'] ?? 'Unknown error',
             ];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [
                 'status' => 'failed',
                 'batch_id' => $params['BatchId'] ?? null,

@@ -3,7 +3,7 @@
 namespace Rayzenai\LaravelSms\Filament\Pages;
 
 use Filament\Forms;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Pages\Page;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
@@ -12,13 +12,13 @@ use Rayzenai\LaravelSms\Rules\NepaliPhoneNumber;
 
 class SendSms extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-chat-bubble-left-right';
     
-    protected static string $view = 'laravel-sms::filament.pages.send-sms';
+    protected string $view = 'laravel-sms::filament.pages.send-sms';
     
     protected static ?string $navigationLabel = 'Send SMS';
     
-    protected static ?string $navigationGroup = 'SMS Management';
+    protected static string | \UnitEnum | null $navigationGroup = 'SMS Management';
     
     protected static ?int $navigationSort = 1;
     
@@ -34,10 +34,10 @@ class SendSms extends Page
         $this->form->fill();
     }
     
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
+        return $schema
+            ->components([
                 Forms\Components\Toggle::make('isBulk')
                     ->label('Send Bulk SMS')
                     ->live()

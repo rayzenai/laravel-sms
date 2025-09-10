@@ -2,6 +2,8 @@
 
 namespace Rayzenai\LaravelSms\Services;
 
+use InvalidArgumentException;
+use Exception;
 use Illuminate\Support\Collection;
 use Rayzenai\LaravelSms\Models\SentMessage;
 
@@ -57,7 +59,7 @@ class SmsMessageBuilder
      * Send the SMS to a single recipient.
      *
      * @return SentMessage
-     * @throws \Exception
+     * @throws Exception
      */
     public function send(): SentMessage
     {
@@ -65,18 +67,18 @@ class SmsMessageBuilder
             if (count($this->recipients) === 1) {
                 $recipient = $this->recipients[0];
             } else {
-                throw new \InvalidArgumentException('Use sendBulk() for multiple recipients');
+                throw new InvalidArgumentException('Use sendBulk() for multiple recipients');
             }
         } else {
             $recipient = $this->recipients;
         }
 
         if (empty($recipient)) {
-            throw new \InvalidArgumentException('Recipient is required');
+            throw new InvalidArgumentException('Recipient is required');
         }
 
         if (empty($this->message)) {
-            throw new \InvalidArgumentException('Message content is required');
+            throw new InvalidArgumentException('Message content is required');
         }
 
         return $this->service->send($recipient, $this->message);
@@ -86,7 +88,7 @@ class SmsMessageBuilder
      * Send the SMS to multiple recipients.
      *
      * @return Collection
-     * @throws \Exception
+     * @throws Exception
      */
     public function sendBulk(): Collection
     {
@@ -95,11 +97,11 @@ class SmsMessageBuilder
         }
 
         if (empty($this->recipients)) {
-            throw new \InvalidArgumentException('Recipients are required');
+            throw new InvalidArgumentException('Recipients are required');
         }
 
         if (empty($this->message)) {
-            throw new \InvalidArgumentException('Message content is required');
+            throw new InvalidArgumentException('Message content is required');
         }
 
         return $this->service->sendBulk($this->recipients, $this->message);

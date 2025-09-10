@@ -2,6 +2,8 @@
 
 namespace Rayzenai\LaravelSms;
 
+use Rayzenai\LaravelSms\Providers\SmsProviderInterface;
+use Rayzenai\LaravelSms\Providers\HttpProvider;
 use Illuminate\Support\ServiceProvider;
 use Rayzenai\LaravelSms\Services\SmsService;
 use Filament\Panel;
@@ -21,14 +23,14 @@ class LaravelSmsServiceProvider extends ServiceProvider
         );
 
         // Bind provider interface
-        $this->app->bind(\Rayzenai\LaravelSms\Providers\SmsProviderInterface::class, function ($app) {
-            $providerClass = config('laravel-sms.default_provider', \Rayzenai\LaravelSms\Providers\HttpProvider::class);
+        $this->app->bind(SmsProviderInterface::class, function ($app) {
+            $providerClass = config('laravel-sms.default_provider', HttpProvider::class);
             return $app->make($providerClass);
         });
 
         // Bind SmsService into the container
         $this->app->singleton(SmsService::class, function ($app) {
-            return new SmsService($app->make(\Rayzenai\LaravelSms\Providers\SmsProviderInterface::class));
+            return new SmsService($app->make(SmsProviderInterface::class));
         });
 
         // Register facade accessor
@@ -100,7 +102,7 @@ class LaravelSmsServiceProvider extends ServiceProvider
         // For Filament v3, resources are auto-discovered when published
         // Users should publish resources using:
         // php artisan vendor:publish --tag=laravel-sms-filament
-        
+
         // Alternatively, if using within a Filament Panel Provider:
         // Add the following to your Panel configuration:
         // ->discoverResources(in: app_path('Filament/Resources/LaravelSms'), for: 'App\\Filament\\Resources\\LaravelSms')
