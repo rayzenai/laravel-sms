@@ -81,6 +81,13 @@ class SwiftSmsProvider implements SmsProviderInterface
      */
     public function sendBulk(array $recipients, string $message): array
     {
+        // Log the incoming recipients for debugging
+        \Log::info('SwiftSmsProvider::sendBulk called', [
+            'recipients' => $recipients,
+            'message' => $message,
+            'recipients_count' => count($recipients)
+        ]);
+        
         $smsDetails = collect($recipients)->map(function ($recipient) use ($message) {
             return [
                 'Message' => $message,
@@ -94,6 +101,16 @@ class SwiftSmsProvider implements SmsProviderInterface
             'Date' => now()->format('Y/m/d H:i:s'),
             'IsClientLogin' => 'N',
         ];
+        
+        // Log the request params
+        \Log::info('SwiftSmsProvider::sendBulk request params', [
+            'url' => $this->bulkUrl,
+            'params' => $params,
+            'auth' => [
+                'username' => $this->username,
+                'org_code' => $this->organisationCode
+            ]
+        ]);
 
         try {
             $response = Http::timeout($this->timeout)
@@ -104,6 +121,13 @@ class SwiftSmsProvider implements SmsProviderInterface
                 ->post($this->bulkUrl, $params);
 
             $responseData = $response->json();
+            
+            // Log the response
+            \Log::info('SwiftSmsProvider::sendBulk response', [
+                'status_code' => $response->status(),
+                'response' => $responseData,
+                'successful' => $response->successful()
+            ]);
 
             if ($response->successful() && ($responseData['responseCode'] ?? null) === 100) {
                 return [

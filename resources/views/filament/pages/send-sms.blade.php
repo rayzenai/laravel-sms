@@ -1,11 +1,13 @@
 <x-filament-panels::page>
-    <x-filament-panels::form wire:submit="sendSms">
+    <form wire:submit.prevent="sendSms">
         {{ $this->form }}
-        
-        <x-filament-panels::form.actions
-            :actions="$this->getFormActions()"
-        />
-    </x-filament-panels::form>
+
+        <div class="mt-2 flex flex-wrap items-center gap-4 justify-end">
+            @foreach($this->getFormActions() as $action)
+                {{ $action }}
+            @endforeach
+        </div>
+    </form>
     
     <div class="mt-6">
         <x-filament::section>

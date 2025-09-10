@@ -2,6 +2,7 @@
 
 namespace Rayzenai\LaravelSms\Filament\Resources;
 
+use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -141,7 +142,7 @@ class SentMessageResource extends Resource
                     }),
             ])
             ->recordActions([
-                Tables\Actions\ViewAction::make('view'),
+                Action::make('view'),
             ])
             ->toolbarActions([
 

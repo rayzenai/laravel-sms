@@ -126,4 +126,21 @@ return [
         'attempts' => env('SMS_RETRY_ATTEMPTS', 3),
         'delay' => env('SMS_RETRY_DELAY', 1000), // milliseconds
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | User Model Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure user model integration for sending SMS to application users.
+    | This allows you to select users from your database when sending SMS.
+    |
+    */
+    'user_model' => [
+        'enabled' => true,
+        'class' => \App\Models\User::class,
+        'phone_field' => 'phone', // The field that contains the phone number
+        'name_field' => 'name', // The field to display as user name
+        'searchable_fields' => ['name', 'email', 'phone'], // Fields to search when filtering users
+    ],
 ];

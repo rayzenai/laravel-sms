@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2025-01-17
+
+### Breaking Changes
+- **MAJOR**: Upgraded to Filament v4 support - requires Filament 4.0 or higher
+- **MAJOR**: Upgraded to Laravel 12 support - requires Laravel 12.0 or higher
+- Changed from `Filament\Forms\Form` to `Filament\Schemas\Schema` for Filament v4 compatibility
+- Updated all Filament components to use new v4 namespace structure
+
+### Added
+- **User Selection for Bulk SMS**: Send SMS to users from your database
+  - Select individual users or all users with phone numbers
+  - Automatic duplicate phone number detection and handling
+  - Shows which users share the same phone number
+  - Displays count of unique numbers vs total users
+- **Improved UI Design**: Modern, clean interface with better visual hierarchy
+  - Side-by-side toggle layout for better space utilization
+  - Cleaner form sections without heavy card borders
+  - Improved helper text and character counting
+- **Configuration for User Model Integration**: Customizable user model settings
+  - Configure which model to use for user data
+  - Specify phone and name fields
+  - Enable/disable user selection feature
+- **Swift SMS Provider Enhancements**: Better logging and error handling for bulk SMS
+
+### Changed
+- Updated Filament resources to use `Filament\Schemas\Schema` instead of `Form`
+- Improved bulk SMS handling with unique phone number filtering
+- Enhanced form validation and user feedback
+- Updated documentation with Filament v4 integration instructions
+- Modernized UI components with better toggle designs
+
+### Fixed
+- Fixed Filament v4 compatibility issues with form schemas
+- Fixed toggle components not responding correctly
+- Fixed bulk SMS not working with Swift SMS provider
+- Resolved namespace conflicts with Filament v4 components
+
 ## [1.2.3] - 2025-01-16
 
 ### Added

@@ -7,17 +7,20 @@ A comprehensive Laravel package for sending SMS messages through various provide
 - 📱 Send single and bulk SMS messages
 - 🔄 Multiple SMS provider support (HTTP, Twilio, SwiftSMS, etc.)
 - 📊 Filament admin panel integration for SMS management
+- 👥 User selection for bulk SMS - send to existing users in your database
+- 🔍 Automatic duplicate phone number detection and handling
 - 📝 SMS logs and tracking
 - ⚡ Rate limiting and retry mechanisms
 - 🛡️ Built-in error handling and logging
 - 🇳🇵 Nepali phone number validation
 - 📦 Bulk SMS optimization with provider-specific batch sending
+- ✨ Modern UI with improved toggles and form layout
 
 ## Requirements
 
-- PHP 8.0 or higher
-- Laravel 9.0 or higher
-- Filament 3.0 (for admin panel features)
+- PHP 8.2 or higher
+- Laravel 12.0 or higher
+- Filament 4.0 (for admin panel features)
 
 ## Installation
 
@@ -72,11 +75,24 @@ SMS_RETRY_ATTEMPTS=3
 SMS_RETRY_DELAY=1000
 
 # SwiftSMS Provider Configuration (for Nepal)
-SMS_PROVIDER=swiftsms
-SWIFT_SMS_API_URL=https://api.swifttech.com.np
+SMS_PROVIDER=swift
+SWIFT_SMS_ORGANISATION_CODE=your-org-code
 SWIFT_SMS_USERNAME=your-username
 SWIFT_SMS_PASSWORD=your-password
-SWIFT_SMS_FROM=your-sender-id
+```
+
+### Step 4: Configure User Model Integration (Optional)
+
+If you want to enable sending SMS to users from your database, update the config file:
+
+```php
+// config/laravel-sms.php
+'user_model' => [
+    'enabled' => true,
+    'class' => \App\Models\User::class,
+    'phone_field' => 'phone', // The field that contains the phone number
+    'name_field' => 'name',   // The field to display as user name
+],
 ```
 
 ## Usage
@@ -270,23 +286,26 @@ The package provides the following API endpoints:
 #### 1. Install Filament (if not already installed)
 
 ```bash
-composer require filament/filament:"^3.0"
+composer require filament/filament:"^4.0"
 php artisan filament:install --panels
 ```
 
 #### 2. Register the SMS Plugin
 
-You'll need to register the `LaravelSmsPlugin` in your `Panel` service provider:
+In Filament v4, you'll need to register the `LaravelSmsPlugin` in your `Panel` service provider:
 
 ```php
 use Rayzenai\LaravelSms\LaravelSmsPlugin;
 
-// In the Filament panel provider:
-Panel::make()
-    ->plugins([
-        LaravelSmsPlugin::make(),
-    ])
-    ->register();
+// In app/Providers/Filament/AdminPanelProvider.php or your panel provider:
+public function panel(Panel $panel): Panel
+{
+    return $panel
+        ->default()
+        ->plugins([
+            LaravelSmsPlugin::make(),
+        ]);
+}
 ```
 
 #### 3. Access the SMS Management
@@ -302,11 +321,19 @@ Once you have registered the plugin, you will see a "Send SMS" section in the ad
 **Send SMS Page:**
 - Single SMS sending with phone number validation
 - Bulk SMS sending to multiple recipients
+- **NEW: User selection mode for bulk SMS**
+  - Select users from your database
+  - Automatic duplicate phone number detection
+  - Shows which users share the same phone number
+  - "Select All" option for all unique phone numbers
+  - Displays count of unique numbers vs total users
 - Real-time character count for messages (160 character limit)
 - Toggle between single and bulk SMS modes
-- Nepali phone number validation
+- Toggle between manual entry and user selection (for bulk mode)
+- Nepali phone number validation (+977 format)
 - Confirmation dialogs before sending
 - Success/error notifications
+- Modern UI with clean sections and better visual hierarchy
 
 **Sent Messages Resource:**
 - View all sent SMS messages in a table
