@@ -3,6 +3,7 @@
 namespace Rayzenai\LaravelSms\Filament\Pages;
 
 use Filament\Actions\Action;
+use Illuminate\Database\QueryException;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -121,9 +122,8 @@ class SendSms extends Page
                                 }
 
                                 // Get all users with phone numbers
-                                $users = $userClass::whereNotNull($phoneField)
-                                    ->where($phoneField, '!=', '')
-                                    ->get();
+                                $query = $userClass::query();
+                                $users = $this->wherePhoneNotEmpty($query, $phoneField)->get();
 
                                 // Group users by phone number to find duplicates
                                 $phoneGroups = $users->groupBy(function ($user) use ($phoneField) {
@@ -164,9 +164,8 @@ class SendSms extends Page
                                     $phoneField = config('laravel-sms.user_model.phone_field', 'phone');
 
                                     // Get all users and group by phone to get only unique numbers
-                                    $users = $userClass::whereNotNull($phoneField)
-                                        ->where($phoneField, '!=', '')
-                                        ->get();
+                                    $query = $userClass::query();
+                                    $users = $this->wherePhoneNotEmpty($query, $phoneField)->get();
 
                                     $phoneGroups = $users->groupBy(function ($user) use ($phoneField) {
                                         $phone = $user->$phoneField;
@@ -315,9 +314,8 @@ class SendSms extends Page
             return [];
         }
 
-        $phoneNumbers = $userClass::whereIn('id', $userIds)
-            ->whereNotNull($phoneField)
-            ->where($phoneField, '!=', '')
+        $query = $userClass::whereIn('id', $userIds);
+        $phoneNumbers = $this->wherePhoneNotEmpty($query, $phoneField)
             ->pluck($phoneField)
             ->map(function ($phone) {
                 // Add +977 prefix if not already present
@@ -347,9 +345,8 @@ class SendSms extends Page
             return 0;
         }
 
-        return $userClass::whereNotNull($phoneField)
-            ->where($phoneField, '!=', '')
-            ->count();
+        $query = $userClass::query();
+        return $this->wherePhoneNotEmpty($query, $phoneField)->count();
     }
 
     protected function getTotalUniqueUsersCount(): int
@@ -365,9 +362,8 @@ class SendSms extends Page
             return 0;
         }
 
-        $users = $userClass::whereNotNull($phoneField)
-            ->where($phoneField, '!=', '')
-            ->get();
+        $query = $userClass::query();
+        $users = $this->wherePhoneNotEmpty($query, $phoneField)->get();
 
         // Normalize and count unique phone numbers
         $uniquePhones = $users->map(function ($user) use ($phoneField) {
@@ -391,10 +387,8 @@ class SendSms extends Page
             return 0;
         }
 
-        $users = $userClass::whereIn('id', $userIds)
-            ->whereNotNull($phoneField)
-            ->where($phoneField, '!=', '')
-            ->get();
+        $query = $userClass::whereIn('id', $userIds);
+        $users = $this->wherePhoneNotEmpty($query, $phoneField)->get();
 
         // Normalize and count unique phone numbers
         $uniquePhones = $users->map(function ($user) use ($phoneField) {
@@ -403,5 +397,27 @@ class SendSms extends Page
         })->unique();
 
         return $uniquePhones->count();
+    }
+
+    /**
+     * Add a where clause for non-empty phone field that works with both string and bigint types
+     */
+    protected function wherePhoneNotEmpty($query, string $phoneField)
+    {
+        // First, ensure the field is not null
+        $query = $query->whereNotNull($phoneField);
+
+        // Try numeric comparison first (for bigint columns)
+        try {
+            // Clone the query to test
+            $testQuery = clone $query;
+            $testQuery->where($phoneField, '>', 0)->count();
+            // If no exception, it's a numeric field
+            return $query->where($phoneField, '>', 0);
+        } catch (QueryException $e) {
+            // If exception, it's a string field
+            return $query->where($phoneField, '!=', '')
+                        ->where($phoneField, '!=', '0');
+        }
     }
 }
