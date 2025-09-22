@@ -1,0 +1,54 @@
+{
+    "name": "rayzenai/laravel-sms",
+    "description": "A Laravel package for sending SMS messages",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Rayzen AI",
+            "email": "support@rayzenai.com"
+        }
+    ],
+    "keywords": [
+        "laravel",
+        "sms",
+        "twilio",
+        "http",
+        "notification",
+        "messaging"
+    ],
+    "homepage": "https://github.com/rayzenai/laravel-sms",
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^12.0",
+        "filament/filament": "^4.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0",
+        "orchestra/testbench": "^8.0|^9.0",
+        "filament/upgrade": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Rayzenai\\LaravelSms\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Rayzenai\\LaravelSms\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Rayzenai\\LaravelSms\\LaravelSmsServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "test-coverage": "vendor/bin/phpunit --coverage-html coverage"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
