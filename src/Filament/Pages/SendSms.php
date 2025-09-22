@@ -122,7 +122,7 @@ class SendSms extends Page
 
                                 // Get all users with phone numbers
                                 $users = $userClass::whereNotNull($phoneField)
-                                    ->where($phoneField, '>', 0)
+                                    ->where($phoneField, '!=', '')
                                     ->get();
 
                                 // Group users by phone number to find duplicates
@@ -165,7 +165,7 @@ class SendSms extends Page
 
                                     // Get all users and group by phone to get only unique numbers
                                     $users = $userClass::whereNotNull($phoneField)
-                                        ->where($phoneField, '>', 0)
+                                        ->where($phoneField, '!=', '')
                                         ->get();
 
                                     $phoneGroups = $users->groupBy(function ($user) use ($phoneField) {
@@ -317,7 +317,7 @@ class SendSms extends Page
 
         $phoneNumbers = $userClass::whereIn('id', $userIds)
             ->whereNotNull($phoneField)
-            ->where($phoneField, '>', 0)
+            ->where($phoneField, '!=', '')
             ->pluck($phoneField)
             ->map(function ($phone) {
                 // Add +977 prefix if not already present
@@ -348,7 +348,7 @@ class SendSms extends Page
         }
 
         return $userClass::whereNotNull($phoneField)
-            ->where($phoneField, '>', 0)
+            ->where($phoneField, '!=', '')
             ->count();
     }
 
@@ -366,7 +366,7 @@ class SendSms extends Page
         }
 
         $users = $userClass::whereNotNull($phoneField)
-            ->where($phoneField, '>', 0)
+            ->where($phoneField, '!=', '')
             ->get();
 
         // Normalize and count unique phone numbers
@@ -393,7 +393,7 @@ class SendSms extends Page
 
         $users = $userClass::whereIn('id', $userIds)
             ->whereNotNull($phoneField)
-            ->where($phoneField, '>', 0)
+            ->where($phoneField, '!=', '')
             ->get();
 
         // Normalize and count unique phone numbers
