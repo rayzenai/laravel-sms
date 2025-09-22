@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.1] - 2024-09-22
+
+### Fixed
+- **Universal Phone Field Support**: Fixed SQL errors when phone fields are stored as bigint
+  - Added intelligent field type detection that works with both string and bigint columns
+  - Automatically adapts queries based on the actual database field type
+  - No configuration needed - works out of the box with any phone field type
+  - Prevents "invalid input syntax for type bigint" errors in PostgreSQL
+
 ## [3.0.0] - 2025-01-17
 
 ### Breaking Changes

@@ -1,6 +1,7 @@
 {
     "name": "rayzenai/laravel-sms",
-    "description": "A Laravel package for sending SMS messages",
+    "description": "A Laravel package for sending SMS messages with support for both string and bigint phone fields",
+    "version": "3.0.1",
     "type": "library",
     "license": "MIT",
     "authors": [
