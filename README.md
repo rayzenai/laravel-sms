@@ -19,8 +19,8 @@ A comprehensive Laravel package for sending SMS messages through various provide
 ## Requirements
 
 - PHP 8.2 or higher
-- Laravel 12.0 or higher
-- Filament 4.0 (for admin panel features)
+- Laravel 11, 12, or 13
+- Filament 5.0 (for admin panel features)
 
 ## Installation
 
@@ -80,6 +80,9 @@ SWIFT_SMS_ORGANISATION_CODE=your-org-code
 SWIFT_SMS_USERNAME=your-username
 SWIFT_SMS_PASSWORD=your-password
 ```
+
+> To select the provider class used to actually send messages, set
+> `SMS_PROVIDER_CLASS` (defaults to `Rayzenai\LaravelSms\Providers\HttpProvider`).
 
 ### Step 4: Configure User Model Integration (Optional)
 
@@ -286,13 +289,13 @@ The package provides the following API endpoints:
 #### 1. Install Filament (if not already installed)
 
 ```bash
-composer require filament/filament:"^4.0"
+composer require filament/filament:"^5.0"
 php artisan filament:install --panels
 ```
 
 #### 2. Register the SMS Plugin
 
-In Filament v4, you'll need to register the `LaravelSmsPlugin` in your `Panel` service provider:
+In Filament v5, you'll need to register the `LaravelSmsPlugin` in your `Panel` service provider:
 
 ```php
 use Rayzenai\LaravelSms\LaravelSmsPlugin;
@@ -321,7 +324,7 @@ Once you have registered the plugin, you will see a "Send SMS" section in the ad
 **Send SMS Page:**
 - Single SMS sending with phone number validation
 - Bulk SMS sending to multiple recipients
-- **NEW: User selection mode for bulk SMS**
+- **User selection mode for bulk SMS**
   - Select users from your database
   - Automatic duplicate phone number detection
   - Shows which users share the same phone number
@@ -362,26 +365,24 @@ You can configure multiple SMS providers in `config/laravel-sms.php`:
 
 ```php
 'providers' => [
-    'twilio' => [
-        'class' => \Rayzenai\LaravelSms\Providers\TwilioProvider::class,
-        'account_sid' => env('TWILIO_ACCOUNT_SID'),
-        'auth_token' => env('TWILIO_AUTH_TOKEN'),
-        'from_number' => env('TWILIO_FROM_NUMBER'),
-    ],
     'http' => [
         'class' => \Rayzenai\LaravelSms\Providers\HttpProvider::class,
-        'api_key' => env('SMS_API_KEY'),
-        'api_url' => env('SMS_API_BASE_URL'),
     ],
-    'swiftsms' => [
+    'twilio' => [
+        'class' => \Rayzenai\LaravelSms\Providers\TwilioProvider::class,
+    ],
+    'swift' => [
         'class' => \Rayzenai\LaravelSms\Providers\SwiftSmsProvider::class,
-        'api_url' => env('SWIFT_SMS_API_URL'),
+        'organisation_code' => env('SWIFT_SMS_ORGANISATION_CODE'),
         'username' => env('SWIFT_SMS_USERNAME'),
         'password' => env('SWIFT_SMS_PASSWORD'),
-        'from' => env('SWIFT_SMS_FROM'),
     ],
 ],
 ```
+
+The HTTP provider reads its endpoint and key from the top-level `SMS_API_BASE_URL`
+and `SMS_API_KEY` values; Twilio reads its credentials from the standard Twilio
+environment variables.
 
 ### Rate Limiting
 
@@ -427,7 +428,7 @@ use Rayzenai\LaravelSms\Providers\SmsProviderInterface;
 
 class CustomProvider implements SmsProviderInterface
 {
-    public function send(string $to, string $message, ?string $from = null): array
+    public function send(string $recipient, string $message): array
     {
         // Your implementation here
         return [
@@ -437,7 +438,7 @@ class CustomProvider implements SmsProviderInterface
         ];
     }
     
-    public function sendBulk(array $recipients, string $message, ?string $from = null): array
+    public function sendBulk(array $recipients, string $message): array
     {
         // Your bulk implementation here
         $results = [];
