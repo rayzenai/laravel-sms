@@ -2,48 +2,21 @@
 
 namespace Rayzenai\LaravelSms\Facades;
 
-use Rayzenai\LaravelSms\Services\SmsMessageBuilder;
-use Rayzenai\LaravelSms\Models\SentMessage;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static SmsMessageBuilder to((string|array) $recipients)
- * @method static SentMessage send(string $to, string $message)
- * @method static Collection sendBulk(array $recipients, string $message)
+ * @method static \Rayzenai\LaravelSms\Services\SmsMessageBuilder to(string|array|\Illuminate\Support\Collection|\Rayzenai\LaravelSms\Contracts\HasSmsNumber $recipients)
+ * @method static \Rayzenai\LaravelSms\Services\SmsService provider(string $name)
+ * @method static \Rayzenai\LaravelSms\Models\SentMessage send(string $recipient, string $message)
+ * @method static \Illuminate\Support\Collection sendBulk(array $recipients, string $message)
+ * @method static array balance()
  *
  * @see \Rayzenai\LaravelSms\Services\SmsService
  */
 class Sms extends Facade
 {
-    /**
-     * Get the registered name of the component.
-     *
-     * @return string
-     */
-    protected static function getFacadeAccessor()
+    protected static function getFacadeAccessor(): string
     {
         return 'sms';
-    }
-    
-    /**
-     * Handle dynamic static calls to create a message builder.
-     *
-     * @param string $method
-     * @param array $args
-     * @return mixed
-     */
-    public static function __callStatic($method, $args)
-    {
-        $instance = static::getFacadeRoot();
-        
-        // If calling 'to', start a new message builder
-        if ($method === 'to') {
-            $builder = new SmsMessageBuilder($instance);
-            return $builder->to(...$args);
-        }
-        
-        // Otherwise, call the method on the service instance
-        return $instance->$method(...$args);
     }
 }

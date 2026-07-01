@@ -3,11 +3,9 @@
 namespace Rayzenai\LaravelSms;
 
 use Rayzenai\LaravelSms\Providers\SmsProviderInterface;
-use Rayzenai\LaravelSms\Providers\HttpProvider;
 use Illuminate\Support\ServiceProvider;
 use Rayzenai\LaravelSms\Services\SmsService;
-use Filament\Panel;
-use Filament\PanelProvider;
+use Rayzenai\LaravelSms\SmsManager;
 
 class LaravelSmsServiceProvider extends ServiceProvider
 {
@@ -18,19 +16,23 @@ class LaravelSmsServiceProvider extends ServiceProvider
     {
         // Merge config
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/laravel-sms.php', 
+            __DIR__ . '/../config/laravel-sms.php',
             'laravel-sms'
         );
 
-        // Bind provider interface
+        // The manager resolves providers by name from the config registry.
+        $this->app->singleton(SmsManager::class, function ($app) {
+            return new SmsManager($app);
+        });
+
+        // Resolve the active provider for anything type-hinting the interface.
         $this->app->bind(SmsProviderInterface::class, function ($app) {
-            $providerClass = config('laravel-sms.default_provider', HttpProvider::class);
-            return $app->make($providerClass);
+            return $app->make(SmsManager::class)->driver();
         });
 
         // Bind SmsService into the container
         $this->app->singleton(SmsService::class, function ($app) {
-            return new SmsService($app->make(SmsProviderInterface::class));
+            return new SmsService($app->make(SmsManager::class));
         });
 
         // Register facade accessor

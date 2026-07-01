@@ -16,10 +16,13 @@ class NepaliPhoneValidationTest extends TestCase
         
         // Set up minimal config for validation testing
         config([
-            'laravel-sms.api_base_url' => 'https://api.example.com',
-            'laravel-sms.api_key' => 'test-key',
+            'laravel-sms.default' => 'http',
+            'laravel-sms.providers.http' => [
+                'class' => \Rayzenai\LaravelSms\Providers\HttpProvider::class,
+                'api_base_url' => 'https://api.example.com',
+                'api_key' => 'test-key',
+            ],
             'laravel-sms.default_sender' => 'TestApp',
-            'laravel-sms.default_provider' => \Rayzenai\LaravelSms\Providers\HttpProvider::class,
         ]);
     }
 

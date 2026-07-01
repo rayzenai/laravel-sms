@@ -5,160 +5,156 @@ namespace Rayzenai\LaravelSms\Services;
 use Exception;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Rayzenai\LaravelSms\Exceptions\UnsupportedFeatureException;
 use Rayzenai\LaravelSms\Models\SentMessage;
+use Rayzenai\LaravelSms\Providers\ReportsBalance;
 use Rayzenai\LaravelSms\Providers\SmsProviderInterface;
+use Rayzenai\LaravelSms\SmsManager;
 
 class SmsService
 {
-    protected SmsProviderInterface $provider;
+    /**
+     * Provider name to use, or null to use the configured default.
+     */
+    protected ?string $providerName = null;
 
-    public function __construct(SmsProviderInterface $provider)
+    public function __construct(protected SmsManager $manager)
     {
-        $this->provider = $provider;
     }
+
+    /**
+     * Return a copy of the service pinned to a specific provider by name.
+     *
+     * Sms::provider('aakash')->send(...)
+     */
+    public function provider(string $name): static
+    {
+        $clone = clone $this;
+        $clone->providerName = $name;
+
+        return $clone;
+    }
+
+    /**
+     * Begin a fluent message for one or more recipients.
+     *
+     * Accepts a phone string, a model implementing HasSmsNumber, or an
+     * array/collection mixing the two.
+     */
+    public function to(mixed $recipients): SmsMessageBuilder
+    {
+        return (new SmsMessageBuilder($this))->to($recipients);
+    }
+
     /**
      * Send SMS to a single recipient.
      *
-     * @param string $recipient The recipient's phone number
-     * @param string $message The message content
-     * @return SentMessage
      * @throws Exception
      */
     public function send(string $recipient, string $message): SentMessage
     {
         try {
-            // Use the provider to send the message
-            $result = $this->provider->send($recipient, $message);
-            
-            // Log the request if logging is enabled
-            if (config('laravel-sms.logging.enabled')) {
-                Log::channel(config('laravel-sms.logging.channel', 'stack'))
-                    ->info('SMS sent', [
-                        'recipient' => $recipient,
-                        'message' => $message,
-                        'response' => $result,
-                    ]);
-            }
-            
-            // Create and save the sent message record
-            $sentMessage = new SentMessage();
-            $sentMessage->recipient = $recipient;
-            $sentMessage->message = $message;
-            $sentMessage->sender = config('laravel-sms.default_sender');
-            $sentMessage->status = $result['status'];
-            $sentMessage->provider = config('laravel-sms.default_provider', 'http');
-            $sentMessage->provider_message_id = $result['sid'] ?? null;
-            $sentMessage->provider_response = $result['response'] ?? $result;
-            $sentMessage->sent_at = now();
-            $sentMessage->save();
-            
-            return $sentMessage;
-            
+            $result = $this->resolveProvider()->send($recipient, $message);
+
+            $this->log('SMS sent', ['recipient' => $recipient, 'message' => $message, 'response' => $result]);
+
+            return $this->record($recipient, $message, [
+                'status' => $result['status'] ?? 'failed',
+                'provider_message_id' => $result['sid'] ?? null,
+                'provider_response' => $result['response'] ?? $result,
+            ]);
         } catch (Exception $e) {
-            // Log the error if logging is enabled
-            if (config('laravel-sms.logging.enabled')) {
-                Log::channel(config('laravel-sms.logging.channel', 'stack'))
-                    ->error('SMS send failed', [
-                        'recipient' => $recipient,
-                        'message' => $message,
-                        'error' => $e->getMessage(),
-                    ]);
-            }
-            
-            // Create a failed message record
-            $sentMessage = new SentMessage();
-            $sentMessage->recipient = $recipient;
-            $sentMessage->message = $message;
-            $sentMessage->sender = config('laravel-sms.default_sender');
-            $sentMessage->status = 'failed';
-            $sentMessage->provider = config('laravel-sms.default_provider', 'http');
-            $sentMessage->provider_response = [
-                'error' => $e->getMessage(),
-                'code' => $e->getCode(),
-            ];
-            $sentMessage->sent_at = now();
-            $sentMessage->save();
-            
+            $this->log('SMS send failed', ['recipient' => $recipient, 'message' => $message, 'error' => $e->getMessage()], 'error');
+
+            $this->record($recipient, $message, [
+                'status' => 'failed',
+                'provider_response' => ['error' => $e->getMessage(), 'code' => $e->getCode()],
+            ]);
+
             throw $e;
         }
     }
-    
+
     /**
      * Send SMS to multiple recipients.
      *
-     * @param array $recipients Array of recipient phone numbers
-     * @param string $message The message content
-     * @return Collection Collection of SentMessage models
+     * @return Collection<int, SentMessage>
+     *
+     * @throws Exception
      */
     public function sendBulk(array $recipients, string $message): Collection
     {
         try {
-            // Use the provider's bulk send method
-            $result = $this->provider->sendBulk($recipients, $message);
-            
-            // Log the request if logging is enabled
-            if (config('laravel-sms.logging.enabled')) {
-                Log::channel(config('laravel-sms.logging.channel', 'stack'))
-                    ->info('Bulk SMS sent', [
-                        'recipients' => $recipients,
-                        'message' => $message,
-                        'response' => $result,
-                    ]);
-            }
-            
-            $sentMessages = collect();
+            $result = $this->resolveProvider()->sendBulk($recipients, $message);
+
+            $this->log('Bulk SMS sent', ['recipients' => $recipients, 'message' => $message, 'response' => $result]);
+
             $status = $result['status'] ?? 'failed';
             $batchId = $result['batch_id'] ?? null;
-            
-            // Create sent message records for each recipient
-            foreach ($recipients as $recipient) {
-                $sentMessage = new SentMessage();
-                $sentMessage->recipient = $recipient;
-                $sentMessage->message = $message;
-                $sentMessage->sender = config('laravel-sms.default_sender');
-                $sentMessage->status = $status;
-                $sentMessage->provider = config('laravel-sms.default_provider', 'http');
-                $sentMessage->provider_message_id = $batchId;
-                $sentMessage->provider_response = $result;
-                $sentMessage->sent_at = now();
-                $sentMessage->save();
-                
-                $sentMessages->push($sentMessage);
-            }
-            
-            return $sentMessages;
-            
+
+            return collect($recipients)->map(fn ($recipient) => $this->record($recipient, $message, [
+                'status' => $status,
+                'provider_message_id' => $batchId,
+                'provider_response' => $result,
+            ]));
         } catch (Exception $e) {
-            // Log the error if logging is enabled
-            if (config('laravel-sms.logging.enabled')) {
-                Log::channel(config('laravel-sms.logging.channel', 'stack'))
-                    ->error('Bulk SMS send failed', [
-                        'recipients' => $recipients,
-                        'message' => $message,
-                        'error' => $e->getMessage(),
-                    ]);
-            }
-            
-            // Create failed message records
-            $sentMessages = collect();
-            foreach ($recipients as $recipient) {
-                $sentMessage = new SentMessage();
-                $sentMessage->recipient = $recipient;
-                $sentMessage->message = $message;
-                $sentMessage->sender = config('laravel-sms.default_sender');
-                $sentMessage->status = 'failed';
-                $sentMessage->provider = config('laravel-sms.default_provider', 'http');
-                $sentMessage->provider_response = [
-                    'error' => $e->getMessage(),
-                    'code' => $e->getCode(),
-                ];
-                $sentMessage->sent_at = now();
-                $sentMessage->save();
-                
-                $sentMessages->push($sentMessage);
-            }
-            
+            $this->log('Bulk SMS send failed', ['recipients' => $recipients, 'message' => $message, 'error' => $e->getMessage()], 'error');
+
+            collect($recipients)->each(fn ($recipient) => $this->record($recipient, $message, [
+                'status' => 'failed',
+                'provider_response' => ['error' => $e->getMessage(), 'code' => $e->getCode()],
+            ]));
+
             throw $e;
+        }
+    }
+
+    /**
+     * Report the remaining credit/balance for the active provider.
+     *
+     * @return array{credit: int|float|null, response: array}
+     *
+     * @throws UnsupportedFeatureException when the provider can't report balance.
+     */
+    public function balance(): array
+    {
+        $provider = $this->resolveProvider();
+
+        if (! $provider instanceof ReportsBalance) {
+            throw UnsupportedFeatureException::balance($this->activeProviderName());
+        }
+
+        return $provider->balance();
+    }
+
+    protected function resolveProvider(): SmsProviderInterface
+    {
+        return $this->manager->driver($this->providerName);
+    }
+
+    protected function activeProviderName(): string
+    {
+        return $this->providerName ?? $this->manager->getDefaultDriver();
+    }
+
+    /**
+     * Persist a sent-message record.
+     */
+    protected function record(string $recipient, string $message, array $attributes): SentMessage
+    {
+        return SentMessage::create(array_merge([
+            'recipient' => $recipient,
+            'message' => $message,
+            'sender' => config('laravel-sms.default_sender'),
+            'provider' => $this->activeProviderName(),
+            'sent_at' => now(),
+        ], $attributes));
+    }
+
+    protected function log(string $message, array $context, string $level = 'info'): void
+    {
+        if (config('laravel-sms.logging.enabled')) {
+            Log::channel(config('laravel-sms.logging.channel', 'stack'))->{$level}($message, $context);
         }
     }
 }

@@ -13,7 +13,9 @@ class ListSentMessages extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->label('Send SMS')
+                ->icon('heroicon-o-paper-airplane'),
         ];
     }
 }

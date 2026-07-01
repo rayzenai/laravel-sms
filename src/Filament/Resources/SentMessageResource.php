@@ -9,7 +9,6 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Rayzenai\LaravelSms\Filament\Resources\SentMessageResource\Pages\CreateSentMessage;
-use Rayzenai\LaravelSms\Filament\Resources\SentMessageResource\Pages\EditSentMessage;
 use Rayzenai\LaravelSms\Filament\Resources\SentMessageResource\Pages\ListSentMessages;
 use Rayzenai\LaravelSms\Filament\Resources\SentMessageResource\Pages\ViewSentMessage;
 use Rayzenai\LaravelSms\Models\SentMessage;
@@ -161,9 +160,8 @@ class SentMessageResource extends Resource
     {
         return [
             'index' => ListSentMessages::route('/'),
-            'create' => CreateSentMessage::route('/create'),
+            'create' => CreateSentMessage::route('/send'),
             'view' => ViewSentMessage::route('/{record}'),
-            'edit' => EditSentMessage::route('/{record}/edit'),
         ];
     }
 }

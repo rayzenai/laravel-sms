@@ -2,6 +2,56 @@
 
 All notable changes to this project will be documented in this file.
 
+## [6.0.0] - 2026-07-01
+
+### Breaking Changes
+- **Provider selection is now name-based via a driver manager.** `SMS_PROVIDER`
+  (e.g. `aakash`, `swift`, `http`) now actually selects the provider by resolving
+  the matching entry in the `providers` registry. Previously `SMS_PROVIDER` was
+  ignored and selection secretly used `SMS_PROVIDER_CLASS` / `default_provider`.
+- **Removed** the `default_provider` config key and the `SMS_PROVIDER_CLASS` env
+  var. Set `SMS_PROVIDER=<name>` instead.
+- **Provider constructors now receive their config array** — `__construct(array $config)`
+  (provided by the new `AbstractSmsProvider` base). Custom providers must extend
+  `AbstractSmsProvider` (or accept `array $config`) instead of reading global
+  `config()` themselves.
+- **Top-level `api_base_url` / `api_key` config keys moved** into the `http`
+  provider entry (`providers.http.api_base_url` / `.api_key`). The `SMS_API_BASE_URL`
+  and `SMS_API_KEY` env var names are unchanged.
+- The `provider` column on `sent_messages` now stores the provider **name**
+  (e.g. `aakash`) instead of the provider class name.
+- **Filament: the standalone `SendSms` page is removed.** Sending is now the
+  **create** screen of `SentMessageResource` ("Send SMS"), so the plugin registers
+  a single resource. With Filament Shield this means access is gated by the
+  resource's `Create` permission instead of a page permission — grant `Create` on
+  Sent Messages to roles that should send. The read-only `edit` page was also
+  dropped (sent messages are immutable logs; delete is available from the view).
+
+### Added
+- **AakashSMS provider** (`AakashSmsProvider`) for the AakashSMS Nepal gateway —
+  single (v3), bulk (v4), and balance/credit lookup. Strips `+977` to the local
+  10-digit format the gateway expects.
+- **`SmsManager`** driver registry that resolves providers by name and injects
+  each provider's config.
+- **`AbstractSmsProvider`** base class: shared config/timeout/sender handling and a
+  default `sendBulk()` that loops `send()`, so a new provider only implements
+  `send()`.
+- **`ReportsBalance`** capability interface + `Sms::balance()` for providers that
+  can report remaining credit (AakashSMS). Unsupported providers throw
+  `UnsupportedFeatureException`.
+- **Runtime provider override**: `Sms::provider('aakash')->send(...)` sends through a
+  specific provider regardless of the configured default.
+- **Model recipients**: a `HasSmsNumber` contract + `Smsable` trait let a model own
+  how its phone number is derived. `Sms::to($user)` (and mixed model/string arrays)
+  and `$user->sendSMS($message)` now work; `smsPhoneNumber()` returning `null` skips
+  the recipient (bulk) or makes `sendSMS()` a no-op.
+
+### Changed
+- `Sms` facade forwards all calls (`to`, `send`, `sendBulk`, `provider`, `balance`)
+  to `SmsService` via the base Laravel facade; the custom `__callStatic` was removed.
+- Bulk sending uses a provider's native batch endpoint where available; records are
+  written per recipient with the batch's aggregate status.
+
 ## [3.0.1] - 2024-09-22
 
 ### Fixed

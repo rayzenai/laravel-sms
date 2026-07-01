@@ -3,25 +3,14 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | SMS API Base URL
+    | Default SMS Provider
     |--------------------------------------------------------------------------
     |
-    | This value is the base URL for your SMS provider's API endpoint.
-    | You should set this in your environment file as SMS_API_BASE_URL.
+    | The name of the provider (a key in the `providers` array below) used to
+    | send messages by default. Override per message with Sms::provider('name').
     |
     */
-    'api_base_url' => env('SMS_API_BASE_URL', 'https://api.example.com'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | SMS API Key
-    |--------------------------------------------------------------------------
-    |
-    | This is the API key used to authenticate with your SMS provider.
-    | You should set this in your environment file as SMS_API_KEY.
-    |
-    */
-    'api_key' => env('SMS_API_KEY', ''),
+    'default' => env('SMS_PROVIDER', 'http'),
 
     /*
     |--------------------------------------------------------------------------
@@ -36,39 +25,36 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | SMS Provider
-    |--------------------------------------------------------------------------
-    |
-    | Here you may specify which SMS provider you wish to use as your
-    | default provider for sending messages. You may also configure
-    | multiple providers and switch between them as needed.
-    |
-    */
-    'default' => env('SMS_PROVIDER', 'default'),
-    'default_provider' => env('SMS_PROVIDER_CLASS', \Rayzenai\LaravelSms\Providers\HttpProvider::class),
-
-    /*
-    |--------------------------------------------------------------------------
     | SMS Providers
     |--------------------------------------------------------------------------
     |
-    | Here you may configure all of the SMS providers used by your
-    | application plus their respective settings. Several examples have
-    | been configured for you and you are free to add your own.
+    | Every provider is registered here by name. Each entry names the `class`
+    | that implements Rayzenai\LaravelSms\Providers\SmsProviderInterface plus
+    | that provider's own credentials. To add a provider, write a class (extend
+    | AbstractSmsProvider) and add an entry here — nothing else changes.
     |
     */
     'providers' => [
         'http' => [
             'class' => \Rayzenai\LaravelSms\Providers\HttpProvider::class,
+            'api_base_url' => env('SMS_API_BASE_URL', 'https://api.example.com'),
+            'api_key' => env('SMS_API_KEY', ''),
         ],
         'twilio' => [
             'class' => \Rayzenai\LaravelSms\Providers\TwilioProvider::class,
+            'account_sid' => env('TWILIO_ACCOUNT_SID'),
+            'auth_token' => env('TWILIO_AUTH_TOKEN'),
+            'from' => env('TWILIO_FROM_NUMBER'),
         ],
         'swift' => [
             'class' => \Rayzenai\LaravelSms\Providers\SwiftSmsProvider::class,
             'organisation_code' => env('SWIFT_SMS_ORGANISATION_CODE'),
             'username' => env('SWIFT_SMS_USERNAME'),
             'password' => env('SWIFT_SMS_PASSWORD'),
+        ],
+        'aakash' => [
+            'class' => \Rayzenai\LaravelSms\Providers\AakashSmsProvider::class,
+            'auth_token' => env('AAKASH_SMS_AUTH_TOKEN'),
         ],
     ],
 

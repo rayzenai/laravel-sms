@@ -4,37 +4,35 @@ namespace Rayzenai\LaravelSms\Tests\Unit;
 
 use Illuminate\Support\Facades\Http;
 use Rayzenai\LaravelSms\Models\SentMessage;
-use Rayzenai\LaravelSms\Services\SmsService;
 use Rayzenai\LaravelSms\Providers\HttpProvider;
+use Rayzenai\LaravelSms\Services\SmsService;
 use Rayzenai\LaravelSms\Tests\TestCase;
 
 class SmsServiceTest extends TestCase
 {
     protected SmsService $smsService;
-    
+
     protected function setUp(): void
     {
         parent::setUp();
-        
-        // Set up config for testing
+
         config([
-            'laravel-sms.api_base_url' => 'https://api.example.com',
-            'laravel-sms.api_key' => 'test-api-key',
+            'laravel-sms.default' => 'http',
+            'laravel-sms.providers.http' => [
+                'class' => HttpProvider::class,
+                'api_base_url' => 'https://api.example.com',
+                'api_key' => 'test-api-key',
+            ],
             'laravel-sms.default_sender' => 'TestApp',
-            'laravel-sms.default' => 'test',
-            'laravel-sms.default_provider' => 'http',
             'laravel-sms.timeout' => 30,
             'laravel-sms.logging.enabled' => false,
         ]);
-        
-        // Create HttpProvider and inject it into SmsService
-        $provider = new HttpProvider();
-        $this->smsService = new SmsService($provider);
+
+        $this->smsService = $this->app->make(SmsService::class);
     }
-    
-    public function test_send_single_sms_successfully()
+
+    public function test_send_single_sms_successfully(): void
     {
-        // Mock successful API response
         Http::fake([
             'https://api.example.com/send' => Http::response([
                 'success' => true,
@@ -42,7 +40,7 @@ class SmsServiceTest extends TestCase
                 'status' => 'sent',
             ], 200),
         ]);
-        
+
         $sentMessage = $this->smsService->send('+9779801002468', 'Test message');
 
         $this->assertInstanceOf(SentMessage::class, $sentMessage);
@@ -52,7 +50,7 @@ class SmsServiceTest extends TestCase
         $this->assertEquals('http', $sentMessage->provider);
         $this->assertEquals('msg_123456', $sentMessage->provider_message_id);
         $this->assertNotNull($sentMessage->sent_at);
-        
+
         Http::assertSent(function ($request) {
             return $request->url() === 'https://api.example.com/send' &&
                    $request['recipient'] === '+9779801002468' &&
@@ -61,111 +59,96 @@ class SmsServiceTest extends TestCase
                    $request->hasHeader('Authorization', 'Bearer test-api-key');
         });
     }
-    
-    public function test_send_single_sms_handles_failure()
+
+    public function test_send_single_sms_handles_failure(): void
     {
-        // Mock failed API response
         Http::fake([
             'https://api.example.com/send' => Http::response([
                 'success' => false,
                 'error' => 'Invalid recipient',
             ], 400),
         ]);
-        
+
         $sentMessage = $this->smsService->send('+9779801002468', 'Test message');
-        
+
         $this->assertEquals('failed', $sentMessage->status);
         $this->assertArrayHasKey('error', $sentMessage->provider_response);
     }
-    
-    public function test_send_bulk_sms_successfully()
+
+    public function test_send_bulk_uses_a_single_native_request(): void
     {
-        // Mock individual API responses for bulk send
         Http::fake([
-            'https://api.example.com/send' => Http::sequence()
-                ->push(['success' => true, 'message_id' => 'msg_001', 'status' => 'sent'], 200)
-                ->push(['success' => true, 'message_id' => 'msg_002', 'status' => 'sent'], 200)
-                ->push(['success' => false, 'error' => 'Invalid number'], 400),
+            'https://api.example.com/send-bulk' => Http::response([
+                'success' => true,
+                'batch_id' => 'batch_001',
+            ], 200),
         ]);
-        
+
         $recipients = ['+9779801002468', '+9779812345678', '+9779898765432'];
         $sentMessages = $this->smsService->sendBulk($recipients, 'Bulk test message');
-        
+
         $this->assertCount(3, $sentMessages);
-        
-        // Check first message
-        $this->assertEquals('+9779801002468', $sentMessages[0]->recipient);
-        $this->assertEquals('sent', $sentMessages[0]->status);
-        $this->assertEquals('msg_001', $sentMessages[0]->provider_message_id);
-        
-        // Check second message
-        $this->assertEquals('+9779812345678', $sentMessages[1]->recipient);
-        $this->assertEquals('sent', $sentMessages[1]->status);
-        $this->assertEquals('msg_002', $sentMessages[1]->provider_message_id);
-        
-        // Check third message (failed)
-        $this->assertEquals('+9779898765432', $sentMessages[2]->recipient);
-        $this->assertEquals('failed', $sentMessages[2]->status);
-        $this->assertArrayHasKey('error', $sentMessages[2]->provider_response);
-        
-        // Assert that three individual send requests were made
-        Http::assertSentCount(3);
-    }
-    
-    public function test_send_bulk_sms_without_individual_results()
-    {
-        // Mock successful individual API responses
-        Http::fake([
-            'https://api.example.com/send' => Http::sequence()
-                ->push(['success' => true, 'message_id' => 'msg_001', 'status' => 'sent'], 200)
-                ->push(['success' => true, 'message_id' => 'msg_002', 'status' => 'sent'], 200),
-        ]);
-        
-        $recipients = ['+9779801002468', '+9779812345678'];
-        $sentMessages = $this->smsService->sendBulk($recipients, 'Bulk test message');
-        
-        $this->assertCount(2, $sentMessages);
-        
-        // Check first message
-        $this->assertEquals('+9779801002468', $sentMessages[0]->recipient);
-        $this->assertEquals('sent', $sentMessages[0]->status);
-        $this->assertEquals('msg_001', $sentMessages[0]->provider_message_id);
-        
-        // Check second message
-        $this->assertEquals('+9779812345678', $sentMessages[1]->recipient);
-        $this->assertEquals('sent', $sentMessages[1]->status);
-        $this->assertEquals('msg_002', $sentMessages[1]->provider_message_id);
-    }
-    
-    public function test_send_handles_http_exception()
-    {
-        // Mock HTTP exception
-        Http::fake(function () {
-            throw new \Exception('Connection timeout', 28);
-        });
-        
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Connection timeout');
-        
-        $this->smsService->send('+9779801002468', 'Test message');
-    }
-    
-    public function test_send_bulk_handles_http_exception()
-    {
-        // Mock HTTP exception
-        Http::fake(function () {
-            throw new \Exception('Connection timeout', 28);
-        });
-        
-        $recipients = ['+9779801002468', '+9779812345678'];
-        $sentMessages = $this->smsService->sendBulk($recipients, 'Bulk test message');
-        
-        $this->assertCount(2, $sentMessages);
-        
-        foreach ($sentMessages as $sentMessage) {
-            $this->assertEquals('failed', $sentMessage->status);
-            $this->assertEquals('Connection timeout', $sentMessage->provider_response['error']);
-            $this->assertEquals(28, $sentMessage->provider_response['code']);
+
+        foreach ($recipients as $index => $recipient) {
+            $this->assertEquals($recipient, $sentMessages[$index]->recipient);
+            $this->assertEquals('sent', $sentMessages[$index]->status);
+            $this->assertEquals('batch_001', $sentMessages[$index]->provider_message_id);
+            $this->assertEquals('http', $sentMessages[$index]->provider);
         }
+
+        // Native bulk: one HTTP call, not one per recipient.
+        Http::assertSentCount(1);
+    }
+
+    public function test_send_bulk_marks_all_failed_on_error_response(): void
+    {
+        Http::fake([
+            'https://api.example.com/send-bulk' => Http::response(['error' => 'gateway down'], 500),
+        ]);
+
+        $sentMessages = $this->smsService->sendBulk(['+9779801002468', '+9779812345678'], 'Bulk');
+
+        $this->assertCount(2, $sentMessages);
+        $this->assertTrue($sentMessages->every(fn ($m) => $m->status === 'failed'));
+    }
+
+    public function test_balance_uses_the_selected_provider(): void
+    {
+        config(['laravel-sms.providers.aakash' => [
+            'class' => \Rayzenai\LaravelSms\Providers\AakashSmsProvider::class,
+            'auth_token' => 'tok',
+        ]]);
+
+        Http::fake([
+            'https://sms.aakashsms.com/sms/v4/available-credit' => Http::response(['available_credit' => 500], 200),
+        ]);
+
+        $this->assertEquals(500, $this->smsService->provider('aakash')->balance()['credit']);
+    }
+
+    public function test_balance_throws_when_provider_does_not_support_it(): void
+    {
+        // The default 'http' provider does not implement ReportsBalance.
+        $this->expectException(\Rayzenai\LaravelSms\Exceptions\UnsupportedFeatureException::class);
+
+        $this->smsService->balance();
+    }
+
+    public function test_send_records_failure_and_rethrows_on_exception(): void
+    {
+        Http::fake(function () {
+            throw new \Exception('Connection timeout', 28);
+        });
+
+        try {
+            $this->smsService->send('+9779801002468', 'Test message');
+            $this->fail('Expected exception was not thrown');
+        } catch (\Exception $e) {
+            $this->assertEquals('Connection timeout', $e->getMessage());
+        }
+
+        $sentMessage = SentMessage::first();
+        $this->assertEquals('failed', $sentMessage->status);
+        $this->assertEquals('Connection timeout', $sentMessage->provider_response['error']);
     }
 }

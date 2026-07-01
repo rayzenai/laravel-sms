@@ -12,8 +12,9 @@ class ViewSentMessage extends ViewRecord
 
     protected function getHeaderActions(): array
     {
+        // Sent messages are immutable logs — no edit, but allow deletion.
         return [
-            Actions\EditAction::make(),
+            Actions\DeleteAction::make(),
         ];
     }
 }

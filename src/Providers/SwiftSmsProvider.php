@@ -2,67 +2,46 @@
 
 namespace Rayzenai\LaravelSms\Providers;
 
-use Exception;
 use Illuminate\Support\Facades\Http;
+use Throwable;
 
-class SwiftSmsProvider implements SmsProviderInterface
+/**
+ * SwiftTech SmartSMS gateway (Nepal). Uses HTTP Basic auth plus an
+ * `OrganisationCode` header, and has a native bulk endpoint.
+ */
+class SwiftSmsProvider extends AbstractSmsProvider
 {
-    protected string $singleUrl = 'https://smartsms.swifttech.com.np:8083/api/Sms/ExecuteSendSmsV5';
-    protected string $bulkUrl = 'https://smartsms.swifttech.com.np:8083/api/Sms/SaveBulkSMSV5';
-    protected string $organisationCode;
-    protected string $username;
-    protected string $password;
-    protected int $timeout;
+    protected const SINGLE_URL = 'https://smartsms.swifttech.com.np:8083/api/Sms/ExecuteSendSmsV5';
 
-    public function __construct()
-    {
-        $this->organisationCode = config('laravel-sms.providers.swift.organisation_code');
-        $this->username = config('laravel-sms.providers.swift.username');
-        $this->password = config('laravel-sms.providers.swift.password');
-        $this->timeout = config('laravel-sms.timeout', 30);
-    }
+    protected const BULK_URL = 'https://smartsms.swifttech.com.np:8083/api/Sms/SaveBulkSMSV5';
 
-    /**
-     * Send SMS to a single recipient.
-     *
-     * @param string $recipient
-     * @param string $message
-     * @return array
-     */
     public function send(string $recipient, string $message): array
     {
-        $params = [
-            'Message' => $message,
-            'ReceiverNo' => $recipient,
-            'IsClientLogin' => 'N',
-            'Date' => now()->format('Y/m/d H:i:s'),
-        ];
-
         try {
-            $response = Http::timeout($this->timeout)
-                ->withBasicAuth($this->username, $this->password)
-                ->withHeaders([
-                    'OrganisationCode' => $this->organisationCode,
-                ])
-                ->post($this->singleUrl, $params);
+            $response = $this->request()->post(self::SINGLE_URL, [
+                'Message' => $message,
+                'ReceiverNo' => $recipient,
+                'IsClientLogin' => 'N',
+                'Date' => now()->format('Y/m/d H:i:s'),
+            ]);
 
-            $responseData = $response->json();
+            $data = $response->json();
 
-            if ($response->successful() && ($responseData['responseCode'] ?? null) === 100) {
+            if ($response->successful() && ($data['responseCode'] ?? null) === 100) {
                 return [
-                    'sid' => $responseData['messageId'] ?? null,
+                    'sid' => $data['messageId'] ?? null,
                     'status' => 'sent',
-                    'response' => $responseData,
+                    'response' => $data,
                 ];
             }
 
             return [
                 'sid' => null,
                 'status' => 'failed',
-                'response' => $responseData,
-                'error' => $responseData['responseDescription'] ?? 'Unknown error',
+                'response' => $data,
+                'error' => $data['responseDescription'] ?? 'Unknown error',
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return [
                 'sid' => null,
                 'status' => 'failed',
@@ -72,87 +51,51 @@ class SwiftSmsProvider implements SmsProviderInterface
         }
     }
 
-    /**
-     * Send SMS to multiple recipients.
-     *
-     * @param array $recipients
-     * @param string $message
-     * @return array
-     */
     public function sendBulk(array $recipients, string $message): array
     {
-        // Log the incoming recipients for debugging
-        \Log::info('SwiftSmsProvider::sendBulk called', [
-            'recipients' => $recipients,
-            'message' => $message,
-            'recipients_count' => count($recipients)
-        ]);
-        
-        $smsDetails = collect($recipients)->map(function ($recipient) use ($message) {
-            return [
-                'Message' => $message,
-                'ReceiverNo' => $recipient,
-            ];
-        })->values()->toArray();
+        $smsDetails = collect($recipients)
+            ->map(fn ($recipient) => ['Message' => $message, 'ReceiverNo' => $recipient])
+            ->values()
+            ->all();
 
-        $params = [
-            'SmsDetails' => $smsDetails,
-            'BatchId' => uniqid('batch_'), // Generate unique batch ID
-            'Date' => now()->format('Y/m/d H:i:s'),
-            'IsClientLogin' => 'N',
-        ];
-        
-        // Log the request params
-        \Log::info('SwiftSmsProvider::sendBulk request params', [
-            'url' => $this->bulkUrl,
-            'params' => $params,
-            'auth' => [
-                'username' => $this->username,
-                'org_code' => $this->organisationCode
-            ]
-        ]);
+        $batchId = uniqid('batch_');
 
         try {
-            $response = Http::timeout($this->timeout)
-                ->withBasicAuth($this->username, $this->password)
-                ->withHeaders([
-                    'OrganisationCode' => $this->organisationCode,
-                ])
-                ->post($this->bulkUrl, $params);
-
-            $responseData = $response->json();
-            
-            // Log the response
-            \Log::info('SwiftSmsProvider::sendBulk response', [
-                'status_code' => $response->status(),
-                'response' => $responseData,
-                'successful' => $response->successful()
+            $response = $this->request()->post(self::BULK_URL, [
+                'SmsDetails' => $smsDetails,
+                'BatchId' => $batchId,
+                'Date' => now()->format('Y/m/d H:i:s'),
+                'IsClientLogin' => 'N',
             ]);
 
-            if ($response->successful() && ($responseData['responseCode'] ?? null) === 100) {
-                return [
-                    'status' => 'sent',
-                    'batch_id' => $params['BatchId'],
-                    'recipients_count' => count($recipients),
-                    'response' => $responseData,
-                ];
-            }
+            $data = $response->json();
+            $sent = $response->successful() && ($data['responseCode'] ?? null) === 100;
 
             return [
-                'status' => 'failed',
-                'batch_id' => $params['BatchId'],
+                'status' => $sent ? 'sent' : 'failed',
+                'batch_id' => $batchId,
                 'recipients_count' => count($recipients),
-                'response' => $responseData,
-                'error' => $responseData['responseDescription'] ?? 'Unknown error',
+                'response' => $data,
+                'error' => $sent ? null : ($data['responseDescription'] ?? 'Unknown error'),
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return [
                 'status' => 'failed',
-                'batch_id' => $params['BatchId'] ?? null,
+                'batch_id' => $batchId,
                 'recipients_count' => count($recipients),
                 'response' => null,
                 'error' => $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * A pending request pre-configured with Swift's auth.
+     */
+    protected function request(): \Illuminate\Http\Client\PendingRequest
+    {
+        return Http::timeout($this->timeout)
+            ->withBasicAuth($this->config('username'), $this->config('password'))
+            ->withHeaders(['OrganisationCode' => $this->config('organisation_code')]);
     }
 }

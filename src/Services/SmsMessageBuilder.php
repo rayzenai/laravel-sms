@@ -2,16 +2,25 @@
 
 namespace Rayzenai\LaravelSms\Services;
 
-use InvalidArgumentException;
 use Exception;
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
+use Rayzenai\LaravelSms\Contracts\HasSmsNumber;
 use Rayzenai\LaravelSms\Models\SentMessage;
 
 class SmsMessageBuilder
 {
     protected SmsService $service;
-    protected string|array $recipients = '';
+
+    /**
+     * Raw recipients as supplied — resolved to phone strings at send time.
+     *
+     * @var mixed
+     */
+    protected mixed $recipients = null;
+
     protected string $message = '';
+
     protected ?string $sender = null;
 
     public function __construct(SmsService $service)
@@ -20,90 +29,126 @@ class SmsMessageBuilder
     }
 
     /**
-     * Set the recipient(s) for the SMS.
-     *
-     * @param string|array $recipients
-     * @return $this
+     * Set the recipient(s): a phone string, a model implementing HasSmsNumber, or
+     * an array/collection mixing the two.
      */
-    public function to(string|array $recipients): self
+    public function to(mixed $recipients): self
     {
         $this->recipients = $recipients;
+
         return $this;
     }
 
     /**
      * Set the message content.
-     *
-     * @param string $message
-     * @return $this
      */
     public function message(string $message): self
     {
         $this->message = $message;
+
         return $this;
     }
 
     /**
      * Set the sender name/number.
-     *
-     * @param string $sender
-     * @return $this
      */
     public function from(string $sender): self
     {
         $this->sender = $sender;
+
         return $this;
     }
 
     /**
      * Send the SMS to a single recipient.
      *
-     * @return SentMessage
      * @throws Exception
      */
     public function send(): SentMessage
     {
-        if (is_array($this->recipients)) {
-            if (count($this->recipients) === 1) {
-                $recipient = $this->recipients[0];
-            } else {
-                throw new InvalidArgumentException('Use sendBulk() for multiple recipients');
-            }
-        } else {
-            $recipient = $this->recipients;
+        $recipients = $this->resolveRecipients();
+
+        if (count($recipients) === 0) {
+            throw new InvalidArgumentException('A recipient with a resolvable phone number is required.');
         }
 
-        if (empty($recipient)) {
-            throw new InvalidArgumentException('Recipient is required');
+        if (count($recipients) > 1) {
+            throw new InvalidArgumentException('Use sendBulk() for multiple recipients');
         }
 
-        if (empty($this->message)) {
-            throw new InvalidArgumentException('Message content is required');
-        }
+        $this->assertMessage();
 
-        return $this->service->send($recipient, $this->message);
+        return $this->service->send($recipients[0], $this->message);
     }
 
     /**
-     * Send the SMS to multiple recipients.
+     * Send the SMS to multiple recipients (recipients without a number are skipped).
      *
-     * @return Collection
+     * @return Collection<int, SentMessage>
+     *
      * @throws Exception
      */
     public function sendBulk(): Collection
     {
-        if (!is_array($this->recipients)) {
-            $this->recipients = [$this->recipients];
+        $recipients = $this->resolveRecipients();
+
+        if (empty($recipients)) {
+            throw new InvalidArgumentException('At least one recipient with a resolvable phone number is required.');
         }
 
-        if (empty($this->recipients)) {
-            throw new InvalidArgumentException('Recipients are required');
-        }
+        $this->assertMessage();
 
-        if (empty($this->message)) {
+        return $this->service->sendBulk($recipients, $this->message);
+    }
+
+    protected function assertMessage(): void
+    {
+        if ($this->message === '') {
             throw new InvalidArgumentException('Message content is required');
         }
+    }
 
-        return $this->service->sendBulk($this->recipients, $this->message);
+    /**
+     * Flatten the supplied recipients into a list of phone strings, dropping any
+     * that resolve to null/empty.
+     *
+     * @return array<int, string>
+     */
+    protected function resolveRecipients(): array
+    {
+        $items = $this->recipients instanceof Collection
+            ? $this->recipients->all()
+            : (is_array($this->recipients) ? $this->recipients : [$this->recipients]);
+
+        return collect($items)
+            ->map(fn ($recipient) => $this->resolvePhone($recipient))
+            ->filter(fn ($phone) => filled($phone))
+            ->values()
+            ->all();
+    }
+
+    protected function resolvePhone(mixed $recipient): ?string
+    {
+        if (is_string($recipient)) {
+            return $recipient;
+        }
+
+        if ($recipient instanceof HasSmsNumber || (is_object($recipient) && method_exists($recipient, 'smsPhoneNumber'))) {
+            return $recipient->smsPhoneNumber();
+        }
+
+        if ($recipient === null) {
+            return null;
+        }
+
+        if (is_object($recipient)) {
+            throw new InvalidArgumentException(sprintf(
+                '%s cannot be used as an SMS recipient. Implement %s.',
+                $recipient::class,
+                HasSmsNumber::class
+            ));
+        }
+
+        throw new InvalidArgumentException('Invalid SMS recipient.');
     }
 }
