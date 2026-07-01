@@ -5,6 +5,7 @@ namespace Rayzenai\LaravelSms;
 use Filament\Contracts\Plugin;
 use Filament\Panel;
 use Rayzenai\LaravelSms\Filament\Resources\SentMessageResource;
+use Rayzenai\LaravelSms\Filament\Resources\SmsSegmentResource;
 
 class LaravelSmsPlugin implements Plugin
 {
@@ -15,9 +16,11 @@ class LaravelSmsPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
-        // Sending lives on the resource's create screen ("Send SMS").
+        // Sending lives on the resource's create screen ("Send SMS");
+        // segments are a saved, reusable audience for bulk sends.
         $panel->resources([
             SentMessageResource::class,
+            SmsSegmentResource::class,
         ]);
     }
 

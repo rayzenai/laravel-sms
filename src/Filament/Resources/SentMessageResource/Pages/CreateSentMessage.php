@@ -12,8 +12,14 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
+use Rayzenai\LaravelSms\Contracts\HasSmsNumber;
 use Rayzenai\LaravelSms\Facades\Sms;
+use Rayzenai\LaravelSms\Filament\Concerns\WithSegmentPreview;
+use Rayzenai\LaravelSms\Filament\Forms\Components\SegmentBuilder;
 use Rayzenai\LaravelSms\Filament\Resources\SentMessageResource;
+use Rayzenai\LaravelSms\Models\SmsSegment;
+use Rayzenai\LaravelSms\Segments\SegmentQuery;
 
 /**
  * "Send SMS" — the create screen of the Sent Messages resource. Submitting the
@@ -22,6 +28,8 @@ use Rayzenai\LaravelSms\Filament\Resources\SentMessageResource;
  */
 class CreateSentMessage extends CreateRecord
 {
+    use WithSegmentPreview;
+
     protected static string $resource = SentMessageResource::class;
 
     protected static ?string $title = 'Send SMS';
@@ -44,17 +52,16 @@ class CreateSentMessage extends CreateRecord
                             ->label('Bulk SMS')
                             ->helperText('Send to multiple recipients')
                             ->live()
-                            ->default(false)
+                            ->default(fn () => filled(request('segment')))
                             ->columnSpan(1),
 
-                        Forms\Components\Toggle::make('useUsers')
-                            ->label('Select from Users')
-                            ->helperText('Choose from existing users')
+                        Forms\Components\Radio::make('bulkSource')
+                            ->label('Recipients from')
+                            ->options($this->bulkSourceOptions())
+                            ->default(fn () => filled(request('segment')) ? 'segment' : 'manual')
                             ->live()
-                            ->default(false)
                             ->columnSpan(1)
-                            ->hidden(fn (Get $get) => $get('isBulk') !== true)
-                            ->visible(fn () => config('laravel-sms.user_model.enabled', false)),
+                            ->hidden(fn (Get $get) => $get('isBulk') !== true),
                     ]),
 
                 Section::make()
@@ -78,7 +85,7 @@ class CreateSentMessage extends CreateRecord
                             ->placeholder('Type number and press Enter (e.g., 9801234567)')
                             ->required()
                             ->helperText('Add multiple 10-digit numbers without +977')
-                            ->hidden(fn (Get $get) => $get('isBulk') !== true || $get('useUsers') === true)
+                            ->hidden(fn (Get $get) => $get('isBulk') !== true || $get('bulkSource') !== 'manual')
                             ->nestedRecursiveRules([
                                 'string',
                                 'regex:/^9[0-9]{9}$/',
@@ -92,7 +99,7 @@ class CreateSentMessage extends CreateRecord
                             ->preload()
                             ->required()
                             ->placeholder('Search and select users...')
-                            ->hidden(fn (Get $get) => $get('isBulk') !== true || $get('useUsers') !== true)
+                            ->hidden(fn (Get $get) => $get('isBulk') !== true || $get('bulkSource') !== 'users')
                             ->options(fn () => $this->userOptions())
                             ->helperText(fn ($state) => $this->getUniquePhoneCount($state ?? []).' unique numbers selected')
                             ->afterStateUpdated(fn ($state, Set $set) => $set('selectAllUsers', count($state ?? []) === $this->getTotalUniqueUsersCount())),
@@ -101,10 +108,26 @@ class CreateSentMessage extends CreateRecord
                             ->label('Select all unique phone numbers')
                             ->helperText(fn () => 'Available: '.$this->getTotalUniqueUsersCount().' unique numbers from '.$this->getTotalUsersCount().' users')
                             ->live()
-                            ->hidden(fn (Get $get) => $get('isBulk') !== true || $get('useUsers') !== true)
+                            ->hidden(fn (Get $get) => $get('isBulk') !== true || $get('bulkSource') !== 'users')
                             ->afterStateUpdated(function ($state, Set $set) {
                                 $set('selectedUsers', $state ? $this->uniqueUserIds() : []);
                             }),
+
+                        Forms\Components\Select::make('segment')
+                            ->label('Segment')
+                            ->options(fn () => SmsSegment::orderBy('name')->pluck('name', 'id'))
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->live()
+                            ->default(fn () => request('segment'))
+                            ->placeholder('Choose a saved segment...')
+                            ->hidden(fn (Get $get) => $get('isBulk') !== true || $get('bulkSource') !== 'segment')
+                            ->helperText(fn ($state) => $this->segmentCountLabel($state)),
+
+                        SegmentBuilder::make('inlineSegment')
+                            ->label('Build a segment')
+                            ->hidden(fn (Get $get) => $get('isBulk') !== true || $get('bulkSource') !== 'inline'),
 
                         Forms\Components\Textarea::make('message')
                             ->label('Message')
@@ -156,6 +179,8 @@ class CreateSentMessage extends CreateRecord
 
                 $sent = Sms::to($recipients)->message($data['message'])->sendBulk();
 
+                $this->stampSegmentIfUsed($data);
+
                 Notification::make()
                     ->title('SMS Sent Successfully!')
                     ->body('Bulk SMS sent to '.$sent->count().' recipients.')
@@ -185,11 +210,129 @@ class CreateSentMessage extends CreateRecord
 
     protected function getRecipients(array $data): array
     {
-        if (! empty($data['useUsers']) && ! empty($data['selectedUsers'])) {
-            return $this->getUserPhoneNumbers($data['selectedUsers']);
+        return match ($data['bulkSource'] ?? 'manual') {
+            'users' => ! empty($data['selectedUsers']) ? $this->getUserPhoneNumbers($data['selectedUsers']) : [],
+            'segment' => ! empty($data['segment']) ? $this->getSegmentPhoneNumbers($data['segment']) : [],
+            'inline' => $this->getInlineSegmentPhoneNumbers($data['inlineSegment'] ?? []),
+            default => $data['recipients'] ?? [],
+        };
+    }
+
+    /**
+     * Resolve an ad-hoc (inline-built) segment tree to phone numbers. Requires at
+     * least one condition so an empty builder never blasts every user.
+     *
+     * @param  array<string, mixed>  $tree
+     * @return array<int, string>
+     */
+    protected function getInlineSegmentPhoneNumbers(array $tree): array
+    {
+        if (empty($tree['children'])) {
+            return [];
         }
 
-        return $data['recipients'] ?? [];
+        $users = SegmentQuery::for(config('laravel-sms.user_model.class'), $tree)->users();
+
+        return $this->usersToPhones($users);
+    }
+
+    /**
+     * The bulk recipient sources offered on the form. Users/segments are only
+     * available when a user model is configured.
+     *
+     * @return array<string, string>
+     */
+    protected function bulkSourceOptions(): array
+    {
+        $options = ['manual' => 'Manual numbers'];
+
+        if (config('laravel-sms.user_model.enabled', false)) {
+            $options['users'] = 'Select users';
+            $options['segment'] = 'Saved segment';
+            $options['inline'] = 'Build a segment';
+        }
+
+        return $options;
+    }
+
+    /**
+     * Live helper text under the segment picker: how many users it matches now.
+     */
+    protected function segmentCountLabel(mixed $segmentId): string
+    {
+        if (empty($segmentId)) {
+            return 'Pick a segment to see how many users match.';
+        }
+
+        $segment = SmsSegment::find($segmentId);
+
+        if (! $segment) {
+            return '';
+        }
+
+        try {
+            $count = $segment->matchCount();
+
+            return $count.' '.str('user')->plural($count).' currently match this segment.';
+        } catch (\Throwable $e) {
+            return 'Could not evaluate this segment: '.$e->getMessage();
+        }
+    }
+
+    /**
+     * Resolve a segment's matching users to a de-duplicated list of phone numbers.
+     *
+     * @return array<int, string>
+     */
+    protected function getSegmentPhoneNumbers(int|string $segmentId): array
+    {
+        $segment = SmsSegment::find($segmentId);
+
+        return $segment ? $this->usersToPhones($segment->recipients()) : [];
+    }
+
+    /**
+     * Map user models to phone strings — via smsPhoneNumber() when the model
+     * implements HasSmsNumber, otherwise the configured phone field.
+     *
+     * @param  Collection<int, \Illuminate\Database\Eloquent\Model>  $users
+     * @return array<int, string>
+     */
+    protected function usersToPhones(Collection $users): array
+    {
+        $phoneField = $this->phoneField();
+
+        return $users
+            ->map(function ($user) use ($phoneField) {
+                if ($user instanceof HasSmsNumber || method_exists($user, 'smsPhoneNumber')) {
+                    return $user->smsPhoneNumber();
+                }
+
+                $phone = $user->{$phoneField} ?? null;
+
+                if (! filled($phone)) {
+                    return null;
+                }
+
+                return str_starts_with((string) $phone, '+977') ? $phone : '+977'.$phone;
+            })
+            ->filter(fn ($phone) => filled($phone))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * After a segment send, record its live match count and the time.
+     */
+    protected function stampSegmentIfUsed(array $data): void
+    {
+        if (($data['bulkSource'] ?? null) !== 'segment' || empty($data['segment'])) {
+            return;
+        }
+
+        $segment = SmsSegment::find($data['segment']);
+        $segment?->markUsed($segment->matchCount());
     }
 
     /**

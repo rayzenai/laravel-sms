@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [6.1.0] - 2026-07-01
+
+### Added
+- **User Segments.** A saved, named query over your user table that you can send
+  bulk SMS to. The query definition is stored (never the results), so a segment's
+  audience is recomputed live every time.
+  - **New `sms_segments` table** — `name`, `conditions` (the query tree),
+    `previous_count`, and `last_used_at`.
+  - **Compact condition builder** — a custom, Alpine-powered field (not Filament's
+    Builder) so it stays dense: type a field name, pick an operator, enter a value,
+    choose AND/OR, and nest conditions in **Groups** for `( )`. It shows a **live
+    match count** as you edit. Used both in the `SmsSegmentResource` (create/edit)
+    and inline on the Send SMS screen.
+  - **Send to a segment** — the Send SMS screen gains two recipient sources:
+    **"Saved segment"** (pick an existing one) and **"Build a segment"** (compose
+    conditions inline and send in one go). Picking/among either shows the live
+    match count; a saved-segment send stamps `last_used_at` / `previous_count`.
+    Segment rows also have a **"Send SMS"** action that deep-links into the send
+    form pre-selected.
+  - **`SegmentQuery`** evaluator — the single, safe place a segment becomes SQL:
+    field names must be real columns on the user table (checked against the live
+    schema), operators come from a fixed allowlist, and values always travel as
+    bindings. Operators: `=`, `!=`, `>`, `>=`, `<`, `<=`, `contains`, `in`
+    (comma list), `is_set`, `is_empty`.
+  - `SmsSegment` model exposes `matchCount()` and `recipients()`; recipients are
+    resolved via `smsPhoneNumber()` when the user model implements `HasSmsNumber`,
+    otherwise the configured phone field.
+
 ## [6.0.2] - 2026-07-01
 
 ### Fixed
