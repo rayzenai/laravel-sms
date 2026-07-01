@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [6.0.1] - 2026-07-01
+
+### Fixed
+- **Sent Messages table: the row "View" action did nothing.** It was a bare
+  `Action::make('view')` with no behavior. Replaced with `ViewAction::make()`, which
+  links to the record's view page (clicking the row already worked).
+
 ## [6.0.0] - 2026-07-01
 
 ### Breaking Changes
