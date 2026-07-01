@@ -59,8 +59,16 @@ class SentMessageResource extends Resource
                 Forms\Components\TextInput::make('provider_message_id')
                     ->label('Provider Message ID')
                     ->maxLength(255),
-                Forms\Components\KeyValue::make('provider_response')
+                Forms\Components\Textarea::make('provider_response')
                     ->label('Provider Response')
+                    // Provider responses can be deeply nested (e.g. Aakash's
+                    // data.valid[]) — KeyValue only renders flat maps and would
+                    // show "[object Object]". Pretty-print the whole payload.
+                    ->formatStateUsing(fn ($state) => is_array($state)
+                        ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                        : $state)
+                    ->rows(10)
+                    ->disabled()
                     ->columnSpanFull(),
                 Forms\Components\DateTimePicker::make('sent_at')
                     ->label('Sent At'),

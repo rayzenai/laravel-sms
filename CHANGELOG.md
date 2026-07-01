@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [6.0.2] - 2026-07-01
+
+### Fixed
+- **View page showed `[object Object]` for `provider_response`.** The `KeyValue`
+  component can't render nested payloads (e.g. Aakash's `data.valid[]`). It now
+  pretty-prints the full response as read-only JSON.
+
 ## [6.0.1] - 2026-07-01
 
 ### Fixed
